@@ -14,10 +14,10 @@ public partial class SettingsViewModel : ObservableObject
     private readonly NavigationService _nav;
 
     [ObservableProperty] public partial UserSettings Settings { get; set; }
-    [ObservableProperty] public partial string ServerUrl { get; set; } = "";
-    [ObservableProperty] public partial string ServerName { get; set; } = "";
-    [ObservableProperty] public partial string ServerVersion { get; set; } = "";
-    [ObservableProperty] public partial string UserName { get; set; } = "";
+    [ObservableProperty] public partial string ServerUrl { get; set; }
+    [ObservableProperty] public partial string ServerName { get; set; }
+    [ObservableProperty] public partial string ServerVersion { get; set; }
+    [ObservableProperty] public partial string UserName { get; set; }
     [ObservableProperty] public partial int SelectedBitrateIndex { get; set; }
     [ObservableProperty] public partial int SelectedSubtitleModeIndex { get; set; }
     [ObservableProperty] public partial int SubtitleFontSize { get; set; }

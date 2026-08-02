@@ -16,8 +16,8 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial bool IsSeries { get; set; }
     [ObservableProperty] public partial BaseItemDto? Item { get; set; }
-    [ObservableProperty] public partial string Title { get; set; } = "";
-    [ObservableProperty] public partial string Subtitle { get; set; } = "";
+    [ObservableProperty] public partial string Title { get; set; }
+    [ObservableProperty] public partial string Subtitle { get; set; }
     [ObservableProperty] public partial string? Description { get; set; }
     [ObservableProperty] public partial string? BackdropUrl { get; set; }
     [ObservableProperty] public partial string? PosterUrl { get; set; }

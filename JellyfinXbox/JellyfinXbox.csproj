@@ -9,6 +9,9 @@
     <Platforms>x64</Platforms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Required for [ObservableProperty] on partial properties
+         (MVVM Toolkit source generator, see MVVMTK0041). -->
+    <LangVersion>preview</LangVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Modern .NET UWP: activates the VS UWP XAML toolchain (XAML compiler,
          Windows.UI.Xaml projection via CsWinRT, appx packaging). VS 18 /

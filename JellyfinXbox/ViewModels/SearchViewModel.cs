@@ -13,7 +13,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] public partial string Query { get; set; } = "";
+    [ObservableProperty] public partial string Query { get; set; }
     [ObservableProperty] public partial bool IsSearching { get; set; }
     [ObservableProperty] public partial bool HasResults { get; set; }
 

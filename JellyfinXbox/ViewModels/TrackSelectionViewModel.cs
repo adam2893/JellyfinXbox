@@ -14,7 +14,7 @@ public partial class TrackSelectionViewModel : ObservableObject
     [ObservableProperty] public partial bool IsVisible { get; set; }
     [ObservableProperty] public partial MediaStream? SelectedAudioTrack { get; set; }
     [ObservableProperty] public partial MediaStream? SelectedSubtitleTrack { get; set; }
-    [ObservableProperty] public partial bool SubtitlesEnabled { get; set; } = true;
+    [ObservableProperty] public partial bool SubtitlesEnabled { get; set; }
 
     public ObservableCollection<MediaStream> AudioTracks { get; } = new();
     public ObservableCollection<MediaStream> SubtitleTracks { get; } = new();
@@ -31,6 +31,7 @@ public partial class TrackSelectionViewModel : ObservableObject
     public TrackSelectionViewModel(JellyfinApiClient api)
     {
         _api = api;
+        SubtitlesEnabled = true; // was field initializer
     }
 
     public void LoadTracks(MediaSourceInfo source)

@@ -12,13 +12,13 @@ public partial class LoginViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] public partial string ServerUrl { get; set; } = "";
-    [ObservableProperty] public partial string Username { get; set; } = "";
-    [ObservableProperty] public partial string Password { get; set; } = "";
+    [ObservableProperty] public partial string ServerUrl { get; set; }
+    [ObservableProperty] public partial string Username { get; set; }
+    [ObservableProperty] public partial string Password { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string? ErrorMessage { get; set; }
     [ObservableProperty] public partial bool ShowPasswordField { get; set; }
-    [ObservableProperty] public partial string ServerName { get; set; } = "";
+    [ObservableProperty] public partial string ServerName { get; set; }
 
     public ObservableCollection<User> PublicUsers { get; } = new();
 

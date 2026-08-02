@@ -54,8 +54,8 @@ public partial class LibraryViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] public partial string LibraryName { get; set; } = "";
-    [ObservableProperty] public partial string LibraryId { get; set; } = "";
+    [ObservableProperty] public partial string LibraryName { get; set; }
+    [ObservableProperty] public partial string LibraryId { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
 
     public ObservableCollection<BaseItemDto> Items { get; } = new();

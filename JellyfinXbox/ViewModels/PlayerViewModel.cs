@@ -26,17 +26,17 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsBuffering { get; set; }
     [ObservableProperty] public partial bool HasVideo { get; set; }
-    [ObservableProperty] public partial string Title { get; set; } = "";
-    [ObservableProperty] public partial string Subtitle { get; set; } = "";
+    [ObservableProperty] public partial string Title { get; set; }
+    [ObservableProperty] public partial string Subtitle { get; set; }
     [ObservableProperty] public partial TimeSpan Position { get; set; }
     [ObservableProperty] public partial TimeSpan Duration { get; set; }
-    [ObservableProperty] public partial string PositionDisplay { get; set; } = "0:00";
-    [ObservableProperty] public partial string DurationDisplay { get; set; } = "0:00";
-    [ObservableProperty] public partial string BackdropUrl { get; set; } = "";
+    [ObservableProperty] public partial string PositionDisplay { get; set; }
+    [ObservableProperty] public partial string DurationDisplay { get; set; }
+    [ObservableProperty] public partial string BackdropUrl { get; set; }
     [ObservableProperty] public partial double BufferingProgress { get; set; }
-    [ObservableProperty] public partial string CurrentVideoCodec { get; set; } = "";
-    [ObservableProperty] public partial string CurrentAudioCodec { get; set; } = "";
-    [ObservableProperty] public partial string CurrentResolution { get; set; } = "";
+    [ObservableProperty] public partial string CurrentVideoCodec { get; set; }
+    [ObservableProperty] public partial string CurrentAudioCodec { get; set; }
+    [ObservableProperty] public partial string CurrentResolution { get; set; }
     [ObservableProperty] public partial bool IsHdr { get; set; }
     [ObservableProperty] public partial bool IsDirectPlay { get; set; }
 
@@ -49,6 +49,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         _trackSelection = new TrackSelectionViewModel(api);
         _trackSelection.OnTracksChanged += OnTracksChanged;
+        PositionDisplay = "0:00";   // was field initializer
+        DurationDisplay = "0:00";   // was field initializer
     }
 
     public MediaPlayer? Player => _player;

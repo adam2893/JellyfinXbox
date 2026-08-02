@@ -14,17 +14,18 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _pollCts;
 
     [ObservableProperty] public partial bool IsActive { get; set; }
-    [ObservableProperty] public partial string Code { get; set; } = "";
-    [ObservableProperty] public partial string StatusMessage { get; set; } = "Waiting for connection...";
+    [ObservableProperty] public partial string Code { get; set; }
+    [ObservableProperty] public partial string StatusMessage { get; set; }
     [ObservableProperty] public partial bool IsSuccess { get; set; }
     [ObservableProperty] public partial bool IsError { get; set; }
-    [ObservableProperty] public partial string ErrorMessage { get; set; } = "";
-    [ObservableProperty] public partial string ConnectedUserName { get; set; } = "";
+    [ObservableProperty] public partial string ErrorMessage { get; set; }
+    [ObservableProperty] public partial string ConnectedUserName { get; set; }
 
     public QuickConnectViewModel(JellyfinApiClient api, NavigationService nav)
     {
         _api = api;
         _nav = nav;
+        StatusMessage = "Waiting for connection..."; // was field initializer
     }
 
     [RelayCommand]

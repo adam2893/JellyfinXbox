@@ -16,7 +16,7 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial bool HasContinueWatching { get; set; }
     [ObservableProperty] public partial bool HasNextUp { get; set; }
-    [ObservableProperty] public partial string DisplayName { get; set; } = "";
+    [ObservableProperty] public partial string DisplayName { get; set; }
 
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
     public ObservableCollection<BaseItemDto> NextUp { get; } = new();
