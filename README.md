@@ -67,7 +67,7 @@ JellyfinXbox/
 
 ## 🔧 Tech Stack
 
-- **UWP C# with WinUI 2.x** (Windows App SDK)
+- **UWP C#** (Windows.UI.Xaml on modern .NET)
 - **MVVM** with CommunityToolkit.Mvvm 8.4
 - **Windows.Media.Playback** for native media pipeline
 - **Media Foundation** for codec support (AV1, HEVC, H264, OPUS, FLAC, etc.)
