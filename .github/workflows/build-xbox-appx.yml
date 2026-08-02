@@ -90,12 +90,19 @@ jobs:
       - name: Diagnose UWP XAML target hooks
         shell: pwsh
         run: |
-          Write-Host "=== AppxPackage targets activation conditions ==="
-          Get-ChildItem "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild" -Recurse -Filter "Microsoft.AppxPackage*.targets" -ErrorAction SilentlyContinue |
-            ForEach-Object {
-              Select-String -Path $_.FullName -Pattern "EnableMsixTooling|GenerateAppxPackage|AppxPackageDir|UseUwp|UapAppxPackageBuildMode" -ErrorAction SilentlyContinue |
-                Select-Object -First 15 | ForEach-Object { "{0}:{1}: {2}" -f $_.Path, $_.LineNumber, $_.Line.Trim() }
-            }
+          $t = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\WindowsXaml" -Recurse -Filter "Microsoft.Windows.UI.Xaml.CSharp.ModernNET.targets" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($t) {
+            Write-Host "=== ModernNET.targets FULL ==="
+            Get-Content $t.FullName
+          }
+          $ap = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\Microsoft.AppxPackage.Targets"
+          if (Test-Path $ap) {
+            Write-Host "=== AppxPackage.Targets head 60 ==="
+            Get-Content $ap -TotalCount 60
+          }
+          Write-Host "=== exe/pri/appx anywhere in workspace ==="
+          Get-ChildItem "D:\a\JellyfinXbox" -Recurse -Include *.exe,*.pri,*.appx,*.appxbundle -File -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName + "  " + $_.Length }
 
       - name: Build and package AppX (sideload)
         shell: pwsh
