@@ -15,9 +15,11 @@ public sealed partial class QuickConnectPage : Page
         ViewModel = App.Services.GetRequiredService<QuickConnectViewModel>();
         InitializeComponent();
 
+        var dispatcher = Windows.System.DispatcherQueue.GetForCurrentThread();
+
         ViewModel.PropertyChanged += (s, e) =>
         {
-            DispatcherQueue.TryEnqueue(() =>
+            dispatcher?.TryEnqueue(() =>
             {
                 bool isActive = ViewModel.IsActive;
                 bool isSuccess = ViewModel.IsSuccess;

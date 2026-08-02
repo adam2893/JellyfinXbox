@@ -55,7 +55,7 @@ public partial class SettingsViewModel : ObservableObject
         LoadFromSettings();
     }
 
-    private void LoadFromSettings()
+    public void LoadFromSettings()
     {
         var s = _api.Settings;
 

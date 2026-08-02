@@ -6,6 +6,7 @@ using JellyfinClient.Services;
 using JellyfinXbox.Services;
 using Windows.System;
 using Windows.UI.Xaml; // DispatcherTimer
+using Windows.Media.Core; // MediaSource
 using Windows.Media.Playback;
 
 namespace JellyfinXbox.ViewModels;

@@ -50,7 +50,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        MainWindow = new Window();
+        MainWindow = Window.Current;
         MainWindow.Content = Services.GetRequiredService<ShellPage>();
         MainWindow.Activate();
     }

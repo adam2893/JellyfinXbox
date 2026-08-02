@@ -30,7 +30,7 @@ public sealed partial class LibraryPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is ValueTuple<string, string> (libraryId, name))
+        if (e.Parameter is (string libraryId, string name))
         {
             ViewModel.LibraryName = name;
             await ViewModel.LoadAsync(libraryId);
