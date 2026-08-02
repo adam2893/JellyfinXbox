@@ -104,7 +104,7 @@ jobs:
           # -t:Publish is the target that runs the MSIX packaging targets
           # for single-project UWP apps (EnableMsixTooling); -t:Build only
           # compiles the DLL and never produces an .appx.
-          msbuild JellyfinXbox\JellyfinXbox\JellyfinXbox.csproj -t:Publish `
+          msbuild JellyfinXbox\JellyfinXbox.csproj -t:Publish `
             -p:Configuration=Release `
             -p:Platform=x64 `
             -p:AppxPackage=true `
