@@ -101,7 +101,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           if (-not $env:CERT_PASSWORD) { $env:CERT_PASSWORD = "JellyfinXbox-CI-Pass!" }
-          msbuild JellyfinXbox.sln -t:Build `
+          # -t:Publish is the target that runs the MSIX packaging targets
+          # for single-project UWP apps (EnableMsixTooling); -t:Build only
+          # compiles the DLL and never produces an .appx.
+          msbuild JellyfinXbox\JellyfinXbox\JellyfinXbox.csproj -t:Publish `
             -p:Configuration=Release `
             -p:Platform=x64 `
             -p:AppxPackage=true `
@@ -115,6 +118,7 @@ jobs:
       - name: Collect outputs
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $out = "AppxOutput"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           $pkg = Get-ChildItem -Path "$env:RUNNER_TEMP/AppxPackages", "$env:GITHUB_WORKSPACE" -Recurse -File -ErrorAction SilentlyContinue |
@@ -123,7 +127,7 @@ jobs:
           $cer = Join-Path $env:RUNNER_TEMP "JellyfinXbox.cer"
           if (Test-Path $cer) { Copy-Item $cer $out }
           Get-ChildItem $out | ForEach-Object { Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length) }
-          if (-not $pkg) { Write-Host "WARNING: no appx package produced - see packaging diagnostics" }
+          if (-not $pkg) { throw "FAILED: no appx package produced - packaging did not run" }
 
       - name: Upload AppX artifact
         uses: actions/upload-artifact@v4
