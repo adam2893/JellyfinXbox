@@ -26,6 +26,10 @@ public partial class LoginViewModel : ObservableObject
     {
         _api = api;
         _nav = nav;
+
+        // Prefill the server URL when a previous session was restored.
+        if (!string.IsNullOrEmpty(api.ServerUrl))
+            ServerUrl = api.ServerUrl;
     }
 
     [RelayCommand]

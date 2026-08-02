@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Windows.UI.Xaml;
+using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
@@ -16,18 +17,28 @@ public partial class App : Application
     {
         this.InitializeComponent();
         Services = ConfigureServices();
+        Suspending += OnSuspending;
     }
 
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
 
-        // HTTP client for Jellyfin API
-        services.AddHttpClient<JellyfinApiClient>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        // Session state persistence (server URL, token, user, settings).
+        services.AddSingleton<ISessionStore, SessionStore>();
+
+        // Single shared Jellyfin API client. It owns ALL session state
+        // (ServerUrl, AccessToken, CurrentUser, Settings), so it MUST be a
+        // singleton — transient instances would each start unauthenticated
+        // and pages would never see the login performed elsewhere.
+        services.AddSingleton<JellyfinApiClient>(sp =>
+        {
+            var handler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback = (m, c, ch, e) => true
-            });
+            };
+            return new JellyfinApiClient(new HttpClient(handler), sp.GetRequiredService<ISessionStore>());
+        });
 
         // View models
         services.AddTransient<LoginViewModel>();
@@ -53,5 +64,16 @@ public partial class App : Application
         MainWindow = Window.Current;
         MainWindow.Content = Services.GetRequiredService<ShellPage>();
         MainWindow.Activate();
+    }
+
+    /// <summary>
+    /// Session state (token, user, settings) is persisted to LocalSettings
+    /// incrementally on every change, so suspension needs no extra flush —
+    /// this hook is kept for future work (e.g. playback reporting).
+    /// </summary>
+    private static void OnSuspending(object sender, SuspendingEventArgs e)
+    {
+        var deferral = e.SuspendingOperation.GetDeferral();
+        deferral.Complete();
     }
 }

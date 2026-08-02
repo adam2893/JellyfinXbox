@@ -7,7 +7,14 @@ namespace JellyfinClient.Services;
 
 public class JellyfinApiClient
 {
+    private const string StoreKeyServerUrl = "session.serverUrl";
+    private const string StoreKeyAccessToken = "session.accessToken";
+    private const string StoreKeyCurrentUser = "session.currentUser";
+    private const string StoreKeySettings = "session.settings";
+    private const string StoreKeyServerInfo = "session.serverInfo";
+
     private readonly HttpClient _http;
+    private readonly ISessionStore? _store;
     private readonly JsonSerializerOptions _jsonOpts;
 
     public string? ServerUrl { get; private set; }
@@ -21,20 +28,23 @@ public class JellyfinApiClient
     public event Action? OnAuthenticationChanged;
     public event Action? OnSettingsChanged;
 
-    public JellyfinApiClient(HttpClient http)
+    public JellyfinApiClient(HttpClient http, ISessionStore? sessionStore = null)
     {
         _http = http;
+        _store = sessionStore;
         _jsonOpts = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
+        RestoreSession();
     }
 
     public void SetServerUrl(string url)
     {
         ServerUrl = url.TrimEnd('/');
         _http.BaseAddress = new Uri(ServerUrl);
+        _store?.Set(StoreKeyServerUrl, ServerUrl);
     }
 
     private void ApplyAuth()
@@ -57,7 +67,86 @@ public class JellyfinApiClient
     public void UpdateSettings(UserSettings settings)
     {
         Settings = settings;
+        if (_store != null)
+            _store.Set(StoreKeySettings, JsonSerializer.Serialize(Settings, _jsonOpts));
         OnSettingsChanged?.Invoke();
+    }
+
+    #endregion
+
+    #region Session Persistence
+
+    /// <summary>
+    /// Restores the last authenticated session (server URL, token, user,
+    /// settings, server info) from the session store, if present. Called from
+    /// the constructor so a relaunched app starts authenticated.
+    /// </summary>
+    private void RestoreSession()
+    {
+        if (_store == null) return;
+
+        try
+        {
+            var serverUrl = _store.Get(StoreKeyServerUrl);
+            if (!string.IsNullOrEmpty(serverUrl))
+            {
+                ServerUrl = serverUrl.TrimEnd('/');
+                _http.BaseAddress = new Uri(ServerUrl);
+            }
+
+            var token = _store.Get(StoreKeyAccessToken);
+            var userJson = _store.Get(StoreKeyCurrentUser);
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(userJson))
+            {
+                var user = JsonSerializer.Deserialize<User>(userJson, _jsonOpts);
+                if (user != null)
+                {
+                    AccessToken = token;
+                    CurrentUser = user;
+                    ApplyAuth();
+                }
+            }
+
+            var settingsJson = _store.Get(StoreKeySettings);
+            if (!string.IsNullOrEmpty(settingsJson))
+            {
+                var settings = JsonSerializer.Deserialize<UserSettings>(settingsJson, _jsonOpts);
+                if (settings != null) Settings = settings;
+            }
+
+            var infoJson = _store.Get(StoreKeyServerInfo);
+            if (!string.IsNullOrEmpty(infoJson))
+                ServerInfo = JsonSerializer.Deserialize<ServerInfo>(infoJson, _jsonOpts);
+        }
+        catch (Exception ex)
+        {
+            // Corrupt or unreadable session data — start fresh.
+            System.Diagnostics.Debug.WriteLine($"[Session] Restore failed: {ex.Message}");
+            ClearSession();
+        }
+    }
+
+    private void PersistSession()
+    {
+        if (_store == null) return;
+        _store.Set(StoreKeyServerUrl, ServerUrl);
+        if (!string.IsNullOrEmpty(AccessToken))
+            _store.Set(StoreKeyAccessToken, AccessToken);
+        if (CurrentUser != null)
+            _store.Set(StoreKeyCurrentUser, JsonSerializer.Serialize(CurrentUser, _jsonOpts));
+        _store.Set(StoreKeySettings, JsonSerializer.Serialize(Settings, _jsonOpts));
+        if (ServerInfo != null)
+            _store.Set(StoreKeyServerInfo, JsonSerializer.Serialize(ServerInfo, _jsonOpts));
+    }
+
+    private void ClearSession()
+    {
+        if (_store == null) return;
+        _store.Set(StoreKeyServerUrl, null);
+        _store.Set(StoreKeyAccessToken, null);
+        _store.Set(StoreKeyCurrentUser, null);
+        _store.Set(StoreKeySettings, null);
+        _store.Set(StoreKeyServerInfo, null);
     }
 
     #endregion
@@ -70,6 +159,8 @@ public class JellyfinApiClient
         {
             var result = await _http.GetFromJsonAsync<ServerInfo>("/System/Info/Public", _jsonOpts);
             ServerInfo = result;
+            if (_store != null && result != null)
+                _store.Set(StoreKeyServerInfo, JsonSerializer.Serialize(result, _jsonOpts));
             return result;
         }
         catch { return null; }
@@ -103,6 +194,7 @@ public class JellyfinApiClient
                 AccessToken = result.AccessToken;
                 CurrentUser = result.User;
                 ApplyAuth();
+                PersistSession();
                 OnAuthenticationChanged?.Invoke();
             }
             return result;
@@ -115,6 +207,7 @@ public class JellyfinApiClient
         AccessToken = null;
         CurrentUser = null;
         ApplyAuth();
+        ClearSession();
         OnAuthenticationChanged?.Invoke();
     }
 
@@ -156,6 +249,7 @@ public class JellyfinApiClient
                 AccessToken = result.AccessToken;
                 CurrentUser = result.User;
                 ApplyAuth();
+                PersistSession();
                 OnAuthenticationChanged?.Invoke();
             }
             return result;

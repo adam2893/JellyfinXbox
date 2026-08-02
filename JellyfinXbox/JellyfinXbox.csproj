@@ -19,12 +19,11 @@
     <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <!-- WinUI 2 (Microsoft.UI.Xaml) only ships uap10.0 assets, which NuGet
          won't select for the net9.0-windows10.0.26100.0 TFM used by the
          Modern .NET UWP toolchain - the app uses stock UWP controls. -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
   </ItemGroup>
 
