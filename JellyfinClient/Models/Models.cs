@@ -387,13 +387,13 @@ public class DeviceProfileBuilder
             "MusicStreamingTranscodingBitrate": 192000,
             "DirectPlayProfiles": [
               {
-                "Container": "mkv,mov,mp4,avi,ts,wmv,mpg,mpeg,webm",
+                "Container": "mkv,mov,mp4,ts",
                 "Type": "Video",
                 "VideoCodec": "av1,h264,hevc,vp9",
-                "AudioCodec": "opus,aac,flac,wav,vorbis,wma,ac3,eac3,dts,mp2,mp3,truehd"
+                "AudioCodec": "aac,ac3,eac3,mp3,flac,opus"
               },
               {
-                "Container": "mp3,aac,flac,wav,wma,ogg,opus,aiff,m4a,webm",
+                "Container": "mp3,aac,flac,wav,m4a",
                 "Type": "Audio"
               }
             ],

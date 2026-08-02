@@ -22,6 +22,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private Timer? _reportTimer;
     private string? _currentItemId;
     private MediaSourceInfo? _currentMediaSource;
+    private bool _triedTranscodeFallback;
 
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsBuffering { get; set; }
@@ -61,6 +62,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         if (item == null) return;
 
         _currentItemId = itemId;
+        _triedTranscodeFallback = false;
         Title = item.Name;
 
         if (item.Type == "Episode")
@@ -282,8 +284,24 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         IsBuffering = false;
         IsPlaying = false;
 
-        if (_currentItemId != null)
-            await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
+        if (_currentItemId == null || _currentMediaSource == null) return;
+
+        // A direct-play/direct-stream source failed (e.g. codec the Xbox
+        // can't decode). Retry once with the server's transcode URL before
+        // giving up, so unsupported media still plays instead of dying.
+        if (!_triedTranscodeFallback && !string.IsNullOrEmpty(_currentMediaSource.TranscodingUrl))
+        {
+            _triedTranscodeFallback = true;
+            IsDirectPlay = false;
+            IsBuffering = true;
+            Debug.WriteLine("[Player] Direct play failed - retrying with transcode");
+
+            var url = $"{_api.ServerUrl}{_currentMediaSource.TranscodingUrl}&ApiKey={_api.AccessToken}";
+            _player!.Source = MediaSource.CreateFromUri(new Uri(url));
+            return;
+        }
+
+        await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
     }
 
     private async Task ReportProgress()
