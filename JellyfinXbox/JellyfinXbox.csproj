@@ -10,6 +10,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Activates the MSIX/UWP toolchain (XAML compiler + Windows.UI.Xaml
+         reference assemblies). VS normally sets this in the .user file;
+         it must be explicit here for command-line/CI builds. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
 
   <ItemGroup>
