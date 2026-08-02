@@ -1,0 +1,83 @@
+<Page
+    x:Class="JellyfinXbox.ShellPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JellyfinXbox"
+    xmlns:views="using:JellyfinXbox.Views"
+    NavigationCacheMode="Required">
+
+    <Grid Background="{StaticResource SurfacePrimaryBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!--             SIDE NAV BAR                 -->
+        <!-- ═══════════════════════════════════════ -->
+        <Border Grid.Column="0" Width="80"
+                Background="{StaticResource SurfaceSecondaryBrush}"
+                BorderBrush="{StaticResource SurfaceTertiaryBrush}"
+                BorderThickness="0 0 1 0"
+                VerticalAlignment="Stretch">
+            <Grid VerticalAlignment="Stretch">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Top nav items -->
+                <StackPanel Grid.Row="0" VerticalAlignment="Center" Spacing="24"
+                            Padding="0 40">
+                    <!-- Logo -->
+                    <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0 0 0 24">
+                        <FontIcon Glyph="&#xE945;" FontSize="32"
+                                  Foreground="{StaticResource AccentBrush}" />
+                        <TextBlock Text="Jellyfin" FontSize="10"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Home -->
+                    <RadioButton x:Name="NavHome"
+                                 Tag="home"
+                                 Style="{StaticResource NavRadioButtonStyle}"
+                                 Content="&#xE80F;"
+                                 Click="NavButton_Click" />
+
+                    <!-- Search -->
+                    <RadioButton x:Name="NavSearch"
+                                 Tag="search"
+                                 Style="{StaticResource NavRadioButtonStyle}"
+                                 Content="&#xE721;"
+                                 Click="NavButton_Click" />
+                </StackPanel>
+
+                <!-- Bottom nav items -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Bottom" Spacing="24"
+                            Padding="0 0 0 40">
+                    <!-- Quick Connect -->
+                    <RadioButton x:Name="NavQuickConnect"
+                                 Tag="quickconnect"
+                                 Style="{StaticResource NavRadioButtonStyle}"
+                                 Content="&#xE8BD;"
+                                 Click="NavButton_Click" />
+
+                    <!-- Settings -->
+                    <RadioButton x:Name="NavSettings"
+                                 Tag="settings"
+                                 Style="{StaticResource NavRadioButtonStyle}"
+                                 Content="&#xE713;"
+                                 Click="NavButton_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!--              CONTENT AREA                -->
+        <!-- ═══════════════════════════════════════ -->
+        <Frame x:Name="ContentFrame"
+               Grid.Column="1"
+               Navigated="ContentFrame_Navigated" />
+    </Grid>
+</Page>

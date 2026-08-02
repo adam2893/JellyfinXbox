@@ -1,0 +1,125 @@
+name: Build Xbox AppX (UWP sideload)
+
+on:
+  workflow_dispatch: # manual trigger
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Set up MSBuild (VS 2022)
+        uses: microsoft/setup-msbuild@v2
+
+      # The hosted runner image only ships UWP VC/MSIX bits; the core UWP
+      # workload (XAML compiler + appx packaging targets) is added on demand.
+      - name: Ensure UWP workload
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installed = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.UWP.Support 2>$null
+          $hasUwp = ($LASTEXITCODE -eq 0 -and $installed)
+          if (-not $hasUwp) {
+            Write-Host "UWP workload missing - installing (one-time, ~5 min)..."
+            $vsPath = (& $vswhere -latest -products * -property installationPath).Trim()
+            & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe" modify `
+              --installPath $vsPath `
+              --add Microsoft.VisualStudio.Component.UWP.Support `
+              --quiet --norestart
+            if ($LASTEXITCODE -ne 0) { throw "Failed to install UWP workload (exit $LASTEXITCODE)" }
+          } else {
+            Write-Host "UWP workload already present"
+          }
+
+      # AppX sideload packages must be code-signed. Default: generate an
+      # ephemeral self-signed cert per run (re-trust the uploaded .cer on the
+      # Xbox each time). For a stable cert across builds, set repository
+      # secrets CERT_PFX_B64 (base64 of a .pfx) + CERT_PASSWORD; the matching
+      # .cer then only needs to be trusted on your console once.
+      - name: Prepare signing certificate
+        shell: pwsh
+        env:
+          CERT_PFX_B64: ${{ secrets.CERT_PFX_B64 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pfx = Join-Path $env:RUNNER_TEMP "JellyfinXbox.pfx"
+          if ($env:CERT_PFX_B64) {
+            if (-not $env:CERT_PASSWORD) { throw "CERT_PASSWORD secret is required when CERT_PFX_B64 is set." }
+            [System.IO.File]::WriteAllBytes($pfx, [System.Convert]::FromBase64String($env:CERT_PFX_B64))
+            Write-Host "Using stable certificate from secrets"
+          } else {
+            if (-not $env:CERT_PASSWORD) { $env:CERT_PASSWORD = "JellyfinXbox-CI-Pass!" }
+            # Subject matches the manifest Publisher (CN=AutoClaw) so the
+            # package identity stays consistent; a stable cert from secrets
+            # should also be issued with CN=AutoClaw.
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+              -Subject "CN=AutoClaw" -KeyExportPolicy Exportable `
+              -KeySpec Signature -KeyUsage DigitalSignature `
+              -CertStoreLocation "Cert:\CurrentUser\My"
+            Export-PfxCertificate -Cert $cert -FilePath $pfx `
+              -Password (ConvertTo-SecureString $env:CERT_PASSWORD -Force -AsPlainText) | Out-Null
+            Export-Certificate -Cert $cert -FilePath (Join-Path $env:RUNNER_TEMP "JellyfinXbox.cer") | Out-Null
+            Write-Host "Generated ephemeral self-signed certificate"
+          }
+          Write-Host "PFX=$pfx"
+
+      - name: Restore packages
+        shell: pwsh
+        run: msbuild JellyfinXbox.sln -t:Restore -p:Configuration=Release -p:Platform=x64 -v:minimal
+
+      - name: Build and package AppX (sideload)
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not $env:CERT_PASSWORD) { $env:CERT_PASSWORD = "JellyfinXbox-CI-Pass!" }
+          msbuild JellyfinXbox.sln -t:Build `
+            -p:Configuration=Release `
+            -p:Platform=x64 `
+            -p:AppxPackage=true `
+            -p:UapAppxPackageBuildMode=Sideload `
+            -p:AppxBundle=Never `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="$env:RUNNER_TEMP/JellyfinXbox.pfx" `
+            -p:PackageCertificatePassword="$env:CERT_PASSWORD" `
+            -p:AppxPackageDir="$env:RUNNER_TEMP/AppxPackages/" `
+            -v:minimal
+
+      - name: Collect outputs
+        shell: pwsh
+        run: |
+          $out = "AppxOutput"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Get-ChildItem -Path "$env:RUNNER_TEMP/AppxPackages" -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in ".appx",".appxbundle",".msix",".msixbundle" } |
+            Copy-Item -Destination $out
+          $cer = Join-Path $env:RUNNER_TEMP "JellyfinXbox.cer"
+          if (Test-Path $cer) { Copy-Item $cer $out }
+          Get-ChildItem $out | ForEach-Object { Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length) }
+          if (-not (Get-ChildItem $out -File)) { throw "No appx package produced" }
+
+      - name: Upload AppX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jellyfinxbox-appx
+          path: AppxOutput/
+          if-no-files-found: error

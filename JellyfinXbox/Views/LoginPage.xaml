@@ -1,0 +1,157 @@
+<Page
+    x:Class="JellyfinXbox.Views.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JellyfinXbox.Views">
+
+    <Grid Background="{StaticResource SurfacePrimaryBrush}"
+          Padding="80 0"
+          HorizontalAlignment="Center" VerticalAlignment="Center">
+
+        <StackPanel Width="480" Spacing="32">
+            <!-- Logo -->
+            <StackPanel Spacing="12" Margin="0 0 0 20">
+                <FontIcon Glyph="&#xE945;" FontSize="56"
+                          Foreground="{StaticResource AccentBrush}"
+                          HorizontalAlignment="Center" />
+                <TextBlock Text="Jellyfin" FontSize="32" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="for Xbox Series" FontSize="16"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Server Name (shown after connect) -->
+            <TextBlock x:Name="ServerNameText"
+                       Text="{x:Bind ViewModel.ServerName, Mode=OneWay}"
+                       FontSize="14"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       HorizontalAlignment="Center"
+                       Visibility="Collapsed" />
+
+            <!-- Server URL -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="Server Address" FontSize="14"
+                           Foreground="{StaticResource TextSecondaryBrush}" />
+                <TextBox x:Name="ServerUrlBox"
+                         Text="{x:Bind ViewModel.ServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="https://jellyfin.example.com"
+                         FontSize="18"
+                         Background="{StaticResource SurfaceTertiaryBrush}"
+                         Foreground="{StaticResource TextPrimaryBrush}"
+                         BorderBrush="{StaticResource TextMutedBrush}"
+                         Padding="16 12"
+                         KeyDown="ServerUrlBox_KeyDown" />
+            </StackPanel>
+
+            <!-- Connect Button -->
+            <Button x:Name="ConnectBtn"
+                    Content="Connect"
+                    Command="{x:Bind ViewModel.ConnectCommand}"
+                    IsEnabled="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}"
+                    Style="{StaticResource AccentButtonStyle}"
+                    FontSize="18" FontWeight="SemiBold"
+                    HorizontalAlignment="Stretch"
+                    Padding="0 14"
+                    CornerRadius="8" />
+
+            <!-- Loading -->
+            <ProgressBar IsIndeterminate="True"
+                         Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                         Foreground="{StaticResource AccentBrush}" />
+
+            <!-- Error -->
+            <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                       FontSize="14" Foreground="{StaticResource ErrorBrush}"
+                       Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
+                       TextWrapping="Wrap" />
+
+            <!-- User Selection (after connect) -->
+            <StackPanel x:Name="UserPanel" Visibility="Collapsed" Spacing="16">
+                <!-- User avatars -->
+                <ListView x:Name="UserListView"
+                          ItemsSource="{x:Bind ViewModel.PublicUsers}"
+                          SelectionMode="Single"
+                          IsItemClickEnabled="True"
+                          ItemClick="UserListView_ItemClick"
+                          Background="Transparent">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="16"
+                                        Padding="16 12"
+                                        CornerRadius="8"
+                                        Background="{StaticResource SurfaceTertiaryBrush}">
+                                <PersonPicture DisplayName="{Binding Name}"
+                                               Width="48" Height="48" />
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="18" VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Username -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Username" FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBox Text="{x:Bind ViewModel.Username, Mode=TwoWay}"
+                             FontSize="18"
+                             Background="{StaticResource SurfaceTertiaryBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             BorderBrush="{StaticResource TextMutedBrush}"
+                             Padding="16 12" />
+                </StackPanel>
+
+                <!-- Password -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Password" FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+                    <PasswordBox Password="{x:Bind ViewModel.Password, Mode=TwoWay}"
+                                 FontSize="18"
+                                 Background="{StaticResource SurfaceTertiaryBrush}"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 BorderBrush="{StaticResource TextMutedBrush}"
+                                 Padding="16 12"
+                                 KeyDown="PasswordBox_KeyDown" />
+                </StackPanel>
+
+                <!-- Login Button -->
+                <Button Content="Sign In"
+                        Command="{x:Bind ViewModel.LoginCommand}"
+                        IsEnabled="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}"
+                        Style="{StaticResource AccentButtonStyle}"
+                        FontSize="18" FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch"
+                        Padding="0 14"
+                        CornerRadius="8" />
+
+                <!-- Divider -->
+                <Grid Margin="0 8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Height="1" Background="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="or" FontSize="13"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Padding="16 0" />
+                    <Border Grid.Column="2" Height="1" Background="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- Quick Connect Button -->
+                <Button Content="&#xE8BD;  Quick Connect"
+                        Click="QuickConnect_Click"
+                        IsEnabled="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}"
+                        Background="{StaticResource SurfaceTertiaryBrush}"
+                        Foreground="{StaticResource TextPrimaryBrush}"
+                        FontSize="16" FontWeight="Medium"
+                        HorizontalAlignment="Stretch"
+                        Padding="0 14"
+                        CornerRadius="8" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Page>
