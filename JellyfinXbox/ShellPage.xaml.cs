@@ -46,8 +46,8 @@ public sealed partial class ShellPage : Page
         }
     }
 
-    private void OnMenuPressed() => NavButton_Click(NavSettings, null);
-    private void OnViewPressed() => NavButton_Click(NavQuickConnect, null);
+    private void OnMenuPressed() => NavButton_Click(NavSettings, null!);
+    private void OnViewPressed() => NavButton_Click(NavQuickConnect, null!);
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
     {
