@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Windows.UI.Xaml;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
@@ -34,15 +36,37 @@ public partial class App : Application
         // Session state persistence (server URL, token, user, settings).
         services.AddSingleton<ISessionStore, SessionStore>();
 
+        // User-approved server certificate allowlist (see TLS handler below).
+        services.AddSingleton<CertificateTrustService>();
+
         // Single shared Jellyfin API client. It owns ALL session state
         // (ServerUrl, AccessToken, CurrentUser, Settings), so it MUST be a
         // singleton — transient instances would each start unauthenticated
         // and pages would never see the login performed elsewhere.
         services.AddSingleton<JellyfinApiClient>(sp =>
         {
+            var trust = sp.GetRequiredService<CertificateTrustService>();
             var handler = new HttpClientHandler
             {
-                ServerCertificateCustomValidationCallback = (m, c, ch, e) => true
+                // Self-hosted Jellyfin servers commonly use self-signed
+                // certs, so we can't require a valid chain. Instead accept
+                // only certificates the user explicitly trusted (persisted
+                // by thumbprint); anything else is rejected and prompts the
+                // user on the login page.
+                ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
+                {
+                    if (errors == SslPolicyErrors.None) return true;
+
+                    if (certificate is X509Certificate2 cert2)
+                    {
+                        var thumbprint = cert2.Thumbprint;
+                        if (trust.IsTrusted(thumbprint)) return true;
+
+                        var host = request?.RequestUri?.Host ?? "?";
+                        trust.ReportRejection(host, thumbprint, cert2.Issuer);
+                    }
+                    return false;
+                }
             };
             return new JellyfinApiClient(new HttpClient(handler), sp.GetRequiredService<ISessionStore>());
         });

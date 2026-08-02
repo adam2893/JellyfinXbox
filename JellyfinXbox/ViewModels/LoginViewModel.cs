@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
+using Windows.System;
+using Windows.UI.Xaml.Controls;
 
 namespace JellyfinXbox.ViewModels;
 
@@ -11,25 +13,73 @@ public partial class LoginViewModel : ObservableObject
 {
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
+    private readonly CertificateTrustService _certTrust;
+    private readonly DispatcherQueue _dispatcher;
 
-    [ObservableProperty] public partial string ServerUrl { get; set; }
-    [ObservableProperty] public partial string Username { get; set; }
-    [ObservableProperty] public partial string Password { get; set; }
-    [ObservableProperty] public partial bool IsLoading { get; set; }
-    [ObservableProperty] public partial string? ErrorMessage { get; set; }
-    [ObservableProperty] public partial bool ShowPasswordField { get; set; }
-    [ObservableProperty] public partial string ServerName { get; set; }
+    [ObservableProperty] private string _serverUrl = "";
+    [ObservableProperty] private string _username = "";
+    [ObservableProperty] private string _password = "";
+    [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private string? _errorMessage;
+    [ObservableProperty] private bool _showPasswordField;
+    [ObservableProperty] private string _serverName = "";
 
     public ObservableCollection<User> PublicUsers { get; } = new();
 
-    public LoginViewModel(JellyfinApiClient api, NavigationService nav)
+    public LoginViewModel(JellyfinApiClient api, NavigationService nav, CertificateTrustService certTrust)
     {
         _api = api;
         _nav = nav;
+        _certTrust = certTrust;
+        _dispatcher = DispatcherQueue.GetForCurrentThread();
+        _certTrust.CertificateRejected += OnCertificateRejected;
 
         // Prefill the server URL when a previous session was restored.
         if (!string.IsNullOrEmpty(api.ServerUrl))
             ServerUrl = api.ServerUrl;
+    }
+
+    /// <summary>
+    /// A connection was refused because the server certificate isn't
+    /// trusted. Ask the user; if they accept, remember the thumbprint and
+    /// retry the connect flow automatically.
+    /// </summary>
+    private void OnCertificateRejected(string host, string thumbprint, string issuer)
+    {
+        _dispatcher.TryEnqueue(async () =>
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Untrusted server",
+                Content =
+                    $"The server at {host} presented a certificate that isn't trusted.\n\n" +
+                    $"Issuer: {issuer}\nThumbprint: {thumbprint}\n\n" +
+                    "Trust this server for future connections?",
+                PrimaryButtonText = "Trust",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = App.MainWindow.Content.XamlRoot
+            };
+
+            try
+            {
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    _certTrust.AddTrusted(thumbprint);
+                    await ConnectAsync(); // retry with the trusted cert
+                }
+                else
+                {
+                    ErrorMessage = "Connection refused: server certificate not trusted.";
+                    IsLoading = false;
+                }
+            }
+            finally
+            {
+                _certTrust.PromptResolved();
+            }
+        });
     }
 
     [RelayCommand]
