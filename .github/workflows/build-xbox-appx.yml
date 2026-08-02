@@ -90,15 +90,12 @@ jobs:
       - name: Diagnose UWP XAML target hooks
         shell: pwsh
         run: |
-          $t = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\WindowsXaml" -Recurse -Filter "Microsoft.Windows.UI.Xaml.CSharp.ModernNET.targets" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($t) {
-            Write-Host "=== ModernNET packaging-related properties ==="
-            Select-String -Path $t.FullName -Pattern "AppxPackage|UapAppx|GenerateAppx|AppxBundle|AppxPackageDir|CreateAppx|MakeAppx|AppxPackageSigningEnabled" |
-              Select-Object -First 40 | ForEach-Object { "{0}: {1}" -f $_.LineNumber, $_.Line.Trim() }
-          }
-          Write-Host "=== appx files on disk after build ==="
-          Get-ChildItem "D:\a\JellyfinXbox" -Recurse -Include *.appx,*.msix,*.appxbundle -File -ErrorAction SilentlyContinue |
-            ForEach-Object { "{0}  {1} bytes" -f $_.FullName, $_.Length }
+          Write-Host "=== AppxPackage targets activation conditions ==="
+          Get-ChildItem "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild" -Recurse -Filter "Microsoft.AppxPackage*.targets" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Select-String -Path $_.FullName -Pattern "EnableMsixTooling|GenerateAppxPackage|AppxPackageDir|UseUwp|UapAppxPackageBuildMode" -ErrorAction SilentlyContinue |
+                Select-Object -First 15 | ForEach-Object { "{0}:{1}: {2}" -f $_.Path, $_.LineNumber, $_.Line.Trim() }
+            }
 
       - name: Build and package AppX (sideload)
         shell: pwsh
@@ -117,7 +114,20 @@ jobs:
             -p:PackageCertificateKeyFile="$env:RUNNER_TEMP/JellyfinXbox.pfx" `
             -p:PackageCertificatePassword="$env:CERT_PASSWORD" `
             -p:AppxPackageDir="$env:RUNNER_TEMP/AppxPackages/" `
+            -v:normal | Tee-Object -FilePath "$env:RUNNER_TEMP/build.log"
+          # Try the explicit package target too (ModernNET may not hook Build)
+          Write-Host "=== trying -t:Package ==="
+          msbuild JellyfinXbox/JellyfinXbox/JellyfinXbox.csproj -t:Package `
+            -p:Configuration=Release -p:Platform=x64 `
+            -p:AppxPackage=true -p:UapAppxPackageBuildMode=Sideload -p:AppxBundle=Never `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="$env:RUNNER_TEMP/JellyfinXbox.pfx" `
+            -p:PackageCertificatePassword="$env:CERT_PASSWORD" `
+            -p:AppxPackageDir="$env:RUNNER_TEMP/AppxPackages/" `
             -v:minimal
+          Write-Host "=== bin tree ==="
+          Get-ChildItem "JellyfinXbox\bin" -Recurse -File -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName.Replace((Get-Location).Path, "") + "  " + $_.Length + " bytes" } | Select-Object -First 40
 
       - name: Collect outputs
         shell: pwsh
