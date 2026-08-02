@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Windows.UI.Xaml;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.System.Profile;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
@@ -18,6 +19,12 @@ public partial class App : Application
         this.InitializeComponent();
         Services = ConfigureServices();
         Suspending += OnSuspending;
+
+        // 10-foot UI: use the Xbox reveal focus visuals on consoles.
+        if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox")
+        {
+            FocusVisualKind = FocusVisualKind.Reveal;
+        }
     }
 
     private static IServiceProvider ConfigureServices()
@@ -52,6 +59,9 @@ public partial class App : Application
 
         // Services
         services.AddSingleton<NavigationService>();
+
+        // Xbox controller input (poll-based; started by the Shell).
+        services.AddSingleton<GamepadService>();
 
         // Shell (hosts all pages)
         services.AddTransient<ShellPage>();

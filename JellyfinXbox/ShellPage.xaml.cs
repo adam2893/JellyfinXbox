@@ -11,11 +11,13 @@ namespace JellyfinXbox;
 public sealed partial class ShellPage : Page
 {
     private readonly NavigationService _nav;
+    private readonly GamepadService _gamepad;
 
     public ShellPage()
     {
         InitializeComponent();
         _nav = App.Services.GetRequiredService<NavigationService>();
+        _gamepad = App.Services.GetRequiredService<GamepadService>();
         _nav.Initialize(ContentFrame);
 
         Loaded += OnLoaded;
@@ -23,6 +25,14 @@ public sealed partial class ShellPage : Page
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // 10-foot UI: global controller shortcuts. D-pad/left-stick focus
+        // navigation and A/B activation are handled natively by XAML on
+        // Xbox, so only the non-native buttons are mapped here. The shell
+        // lives for the app's lifetime, so subscribe once, no unsubscribe.
+        _gamepad.Start();
+        _gamepad.OnMenuPressed += OnMenuPressed;  // ☰ → Settings
+        _gamepad.OnViewPressed += OnViewPressed;  // ⊞ → Quick Connect
+
         var api = App.Services.GetRequiredService<JellyfinApiClient>();
 
         if (!api.IsAuthenticated)
@@ -35,6 +45,9 @@ public sealed partial class ShellPage : Page
             _nav.NavigateTo(typeof(HomePage));
         }
     }
+
+    private void OnMenuPressed() => NavButton_Click(NavSettings, null);
+    private void OnViewPressed() => NavButton_Click(NavQuickConnect, null);
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
     {

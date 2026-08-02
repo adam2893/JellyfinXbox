@@ -77,10 +77,10 @@ JellyfinXbox/
 ## 📋 Prerequisites
 
 1. **Windows 10/11** dev machine
-2. **Visual Studio 2022** (17.0+)
+2. **Visual Studio 2026 (18.x)** — required for the Modern .NET UWP toolchain
 3. **UWP workload** installed via Visual Studio Installer
-4. **Windows SDK** 10.0.19041.0 or later
-5. **.NET 9.0** SDK (with the Modern .NET UWP toolchain from Visual Studio 18 / .NET 9)
+4. **Windows SDK** 10.0.26100.0 or later
+5. **.NET 9.0 SDK** (with the Modern .NET UWP toolchain from Visual Studio 18 / .NET 9)
 6. **Xbox One/Xbox Series X/S** (for deployment)
    - Enable **Dev Mode** on the console (free, but requires a Microsoft Store developer account to activate — see [Xbox Developer Mode activation](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation))
 
@@ -92,16 +92,13 @@ JellyfinXbox/
 dotnet restore JellyfinXbox.sln
 
 # Build
-dotnet build JellyfinXbox/JellyfinXbox/JellyfinXbox.csproj -c Debug -r win10-x64
-
-# Run (deploy to local machine)
-# Open in Visual Studio and press F5
+dotnet build JellyfinXbox/JellyfinXbox.csproj -c Debug
 ```
 
 ### Visual Studio (Recommended)
-1. Open `JellyfinXbox.sln` in Visual Studio 2022
+1. Open `JellyfinXbox.sln` in Visual Studio 2026
 2. Set **JellyfinXbox** as the startup project
-3. Set target to **x64** (or ARM64 for native Xbox build)
+3. Set target to **x64** (Xbox consoles are x64 — there is no ARM64 build)
 4. Press **F5** to build and deploy
 
 ### Deploy to Xbox
@@ -115,14 +112,11 @@ dotnet build JellyfinXbox/JellyfinXbox/JellyfinXbox.csproj -c Debug -r win10-x64
 
 ### Sideloading (no Visual Studio)
 ```bash
-# Build the .appx package
-dotnet publish JellyfinXbox/JellyfinXbox/JellyfinXbox.csproj -c Release -r win10-x64
-
-# Use WinAppDeployCmd tool to deploy
-WinAppDeployCmd install -file JellyfinXbox/bin/Release/net8.0-windows10.0.19041.0/win10-x64/AppPackages/.../JellyfinXbox.appx -ip <XBOX_IP>
+# Build the .msix package (use the GitHub Actions workflow below — it
+# produces a signed package + matching certificate for you)
 ```
 
-> 💡 For a properly signed, Xbox-ready `.appx` (plus the matching certificate), use the GitHub Actions workflow below — it handles packaging and signing for you.
+> 💡 For a properly signed, Xbox-ready `.msix` (plus the matching certificate), use the GitHub Actions workflow below — it handles packaging and signing for you.
 
 ## 🤖 Building with GitHub Actions (no Windows needed)
 

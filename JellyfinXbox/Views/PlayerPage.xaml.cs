@@ -11,11 +11,21 @@ namespace JellyfinXbox.Views;
 public sealed partial class PlayerPage : Page
 {
     public PlayerViewModel ViewModel { get; }
+    private readonly GamepadService _gamepad;
     private DispatcherTimer? _hideTimer;
+
+    // Stored as fields so += / -= in OnNavigatedTo/From match exactly.
+    private readonly Action _viewPressedHandler;
+    private readonly Action _aPressedHandler;
+    private readonly Action _bPressedHandler;
 
     public PlayerPage()
     {
         ViewModel = App.Services.GetRequiredService<PlayerViewModel>();
+        _gamepad = App.Services.GetRequiredService<GamepadService>();
+        _viewPressedHandler = () => ToggleTrackPanel_Click(this, null);
+        _aPressedHandler = () => PlayPause_Click(this, null);
+        _bPressedHandler = () => Back_Click(this, null);
         InitializeComponent();
 
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
@@ -30,6 +40,17 @@ public sealed partial class PlayerPage : Page
     {
         base.OnNavigatedTo(e);
 
+        // Controller shortcuts (D-pad focus + A activation are native):
+        //   Right/Left trigger → seek; View → track panel; A → play/pause;
+        //   B → stop & back; Menu → keep transport visible.
+        _gamepad.Start();
+        _gamepad.OnRightTrigger += OnRightTrigger;
+        _gamepad.OnLeftTrigger += OnLeftTrigger;
+        _gamepad.OnViewPressed += _viewPressedHandler;
+        _gamepad.OnAPressed += _aPressedHandler;
+        _gamepad.OnBPressed += _bPressedHandler;
+        _gamepad.OnMenuPressed += ShowTransport;
+
         if (e.Parameter is string itemId)
         {
             var player = ViewModel.Player;
@@ -43,7 +64,36 @@ public sealed partial class PlayerPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        _gamepad.OnRightTrigger -= OnRightTrigger;
+        _gamepad.OnLeftTrigger -= OnLeftTrigger;
+        _gamepad.OnViewPressed -= _viewPressedHandler;
+        _gamepad.OnAPressed -= _aPressedHandler;
+        _gamepad.OnBPressed -= _bPressedHandler;
+        _gamepad.OnMenuPressed -= ShowTransport;
         ViewModel.Dispose();
+    }
+
+    // Trigger events fire continuously while held; a full 10s seek per poll
+    // would be too fast, so hold-to-repeat at a fixed cadence instead.
+    private DateTime _lastTriggerSeek = DateTime.MinValue;
+    private static readonly TimeSpan TriggerSeekInterval = TimeSpan.FromMilliseconds(400);
+
+    private void OnRightTrigger(double value)
+    {
+        var now = DateTime.UtcNow;
+        if (now - _lastTriggerSeek < TriggerSeekInterval) return;
+        _lastTriggerSeek = now;
+        ViewModel.SeekForwardCommand.Execute(null);
+        ShowTransport();
+    }
+
+    private void OnLeftTrigger(double value)
+    {
+        var now = DateTime.UtcNow;
+        if (now - _lastTriggerSeek < TriggerSeekInterval) return;
+        _lastTriggerSeek = now;
+        ViewModel.SeekBackwardCommand.Execute(null);
+        ShowTransport();
     }
 
     private void ShowTransport()
