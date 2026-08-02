@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
+using JellyfinXbox.Services;
 using JellyfinXbox.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Windows.UI.Xaml;

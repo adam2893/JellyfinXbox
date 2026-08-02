@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
+using JellyfinXbox.Services;
 using Windows.System;
 using Windows.UI.Xaml; // DispatcherTimer
 using Windows.Media.Playback;

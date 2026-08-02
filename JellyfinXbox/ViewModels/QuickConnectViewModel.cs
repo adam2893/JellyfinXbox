@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Services;
+using JellyfinXbox.Services;
 using JellyfinXbox.Views;
 
 namespace JellyfinXbox.ViewModels;
