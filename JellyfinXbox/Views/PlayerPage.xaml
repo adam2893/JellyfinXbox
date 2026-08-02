@@ -43,7 +43,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Audio & Subtitles" FontSize="22" FontWeight="Bold"
+                    <TextBlock Text="Audio &amp; Subtitles" FontSize="22" FontWeight="Bold"
                                Foreground="White" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Click="CloseTrackPanel_Click"
                             Background="Transparent" Foreground="White"
@@ -170,7 +170,7 @@
 
                         <Button Click="ToggleTrackPanel_Click" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
-                                ToolTipService.ToolTip="Audio & Subtitles">
+                                ToolTipService.ToolTip="Audio &amp; Subtitles">
                             <FontIcon Glyph="&#xEDC4;" FontSize="20" />
                         </Button>
                     </StackPanel>

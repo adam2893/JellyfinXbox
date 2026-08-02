@@ -61,8 +61,7 @@
                         <StackPanel Width="160" Spacing="8">
                             <Border Width="160" Height="240"
                                     CornerRadius="12"
-                                    Background="{StaticResource SurfaceTertiaryBrush}"
-                                    Overflow="Hidden">
+                                    Background="{StaticResource SurfaceTertiaryBrush}">
                                 <Image Stretch="UniformToFill" />
                             </Border>
                             <TextBlock Text="{Binding Name}"

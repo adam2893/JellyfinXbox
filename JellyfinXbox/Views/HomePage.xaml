@@ -6,7 +6,7 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Hidden"
                   HorizontalScrollMode="Disabled"
-                  VerticalSnapPointsMode="None">
+                  VerticalSnapPointsType="None">
         <StackPanel Padding="60 40 60 60" Spacing="48">
 
             <!-- ═══════════════════════════════════════ -->
@@ -58,7 +58,7 @@
                                       CornerRadius="12"
                                       Background="{StaticResource SurfaceTertiaryBrush}">
                                     <!-- Poster -->
-                                    <Border CornerRadius="12" Overflow="Hidden">
+                                    <Border CornerRadius="12">
                                         <Image Stretch="UniformToFill" />
                                     </Border>
                                     <!-- Progress bar -->
@@ -108,7 +108,7 @@
                                 <Grid Width="320" Height="180"
                                       CornerRadius="12"
                                       Background="{StaticResource SurfaceTertiaryBrush}">
-                                    <Border CornerRadius="12" Overflow="Hidden">
+                                    <Border CornerRadius="12">
                                         <Image Stretch="UniformToFill" />
                                     </Border>
                                     <StackPanel VerticalAlignment="Bottom"
@@ -156,8 +156,7 @@
                                 <StackPanel Width="160" Spacing="8">
                                     <Border Width="160" Height="240"
                                             CornerRadius="12"
-                                            Background="{StaticResource SurfaceTertiaryBrush}"
-                                            Overflow="Hidden">
+                                            Background="{StaticResource SurfaceTertiaryBrush}">
                                         <Image Stretch="UniformToFill" />
                                     </Border>
                                     <TextBlock Text="{Binding Name}"
@@ -201,8 +200,7 @@
                                 <StackPanel Width="160" Spacing="8">
                                     <Border Width="160" Height="240"
                                             CornerRadius="12"
-                                            Background="{StaticResource SurfaceTertiaryBrush}"
-                                            Overflow="Hidden">
+                                            Background="{StaticResource SurfaceTertiaryBrush}">
                                         <Image Stretch="UniformToFill" />
                                     </Border>
                                     <TextBlock Text="{Binding Name}"

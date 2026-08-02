@@ -41,7 +41,6 @@
                             Width="240" Height="360"
                             CornerRadius="16"
                             Background="{StaticResource SurfaceTertiaryBrush}"
-                            Overflow="Hidden"
                             Shadow="{ThemeResource ThemeShadow}">
                         <Image x:Name="PosterImage" Stretch="UniformToFill" />
                     </Border>
@@ -185,8 +184,7 @@
                                     <!-- Thumbnail -->
                                     <Border Grid.Column="1" Width="160" Height="90"
                                             CornerRadius="8"
-                                            Background="{StaticResource SurfaceHoverBrush}"
-                                            Overflow="Hidden">
+                                            Background="{StaticResource SurfaceHoverBrush}">
                                         <Image Stretch="UniformToFill" />
                                     </Border>
 

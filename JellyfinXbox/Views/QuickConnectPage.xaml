@@ -64,7 +64,7 @@
                                Foreground="{StaticResource AccentBrush}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
-                               LetterSpacing="8" />
+                               CharacterSpacing="8" />
                 </Border>
 
                 <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"

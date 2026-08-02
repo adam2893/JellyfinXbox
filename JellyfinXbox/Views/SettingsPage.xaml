@@ -1,7 +1,8 @@
 <Page
     x:Class="JellyfinXbox.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JellyfinXbox.Views">
 
     <ScrollViewer Background="{StaticResource SurfacePrimaryBrush}"
                   VerticalScrollBarVisibility="Hidden"
@@ -111,10 +112,10 @@
                 <StackPanel Spacing="12" Padding="20"
                             Background="{StaticResource SurfaceSecondaryBrush}"
                             CornerRadius="12">
-                    <InfoRow Label="Server" Value="{x:Bind ViewModel.ServerName}" />
-                    <InfoRow Label="Version" Value="{x:Bind ViewModel.ServerVersion}" />
-                    <InfoRow Label="URL" Value="{x:Bind ViewModel.ServerUrl}" />
-                    <InfoRow Label="User" Value="{x:Bind ViewModel.UserName}" />
+                    <local:InfoRow Label="Server" Value="{x:Bind ViewModel.ServerName}" />
+                    <local:InfoRow Label="Version" Value="{x:Bind ViewModel.ServerVersion}" />
+                    <local:InfoRow Label="URL" Value="{x:Bind ViewModel.ServerUrl}" />
+                    <local:InfoRow Label="User" Value="{x:Bind ViewModel.UserName}" />
                 </StackPanel>
             </StackPanel>
 
@@ -134,14 +135,13 @@
 
         </StackPanel>
     </ScrollViewer>
-</Page>
 
-<!-- Info row template for server details -->
-<Page.Resources>
-    <Style TargetType="InfoRow">
+    <!-- Info row template for server details -->
+    <Page.Resources>
+    <Style TargetType="local:InfoRow">
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="InfoRow">
+                <ControlTemplate TargetType="local:InfoRow">
                     <Grid Margin="0 4" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="120" />
@@ -157,4 +157,5 @@
             </Setter.Value>
         </Setter>
     </Style>
-</Page.Resources>
+    </Page.Resources>
+</Page>
