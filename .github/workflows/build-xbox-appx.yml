@@ -90,18 +90,15 @@ jobs:
       - name: Diagnose UWP XAML target hooks
         shell: pwsh
         run: |
-          $sdk = "C:\Program Files\dotnet\sdk"
-          Get-ChildItem $sdk -Directory | ForEach-Object {
-            $t = Join-Path $_.FullName "Sdks\Microsoft.NET.Sdk\Targets\Microsoft.NET.Sdk.targets"
-            if (Test-Path $t) {
-              Write-Host "--- $t ---"
-              Select-String -Path $t -Pattern "UseUwp|EnableMsixTooling|Windows.UI.Xaml|WindowsSdkReferences|TargetPlatformIdentifier" | Select-Object -First 15
-            }
-          }
-          Write-Host "=== VS targets mentioning Microsoft.Windows.UI.Xaml ==="
-          Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter *.targets -ErrorAction SilentlyContinue |
-            Select-String -Pattern "Microsoft.Windows.UI.Xaml" -ErrorAction SilentlyContinue |
-            Select-Object -First 10 Path, LineNumber, Line
+          $ia = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Current\Microsoft.Common.Targets\ImportAfter\Microsoft.Windows.UI.Xaml.CSharp.ModernNET.ImportAfter.targets"
+          Write-Host "=== ImportAfter ==="
+          Get-Content $ia -ErrorAction SilentlyContinue
+          $ib = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Current\Microsoft.Common.Targets\ImportBefore\Microsoft.Windows.UI.Xaml.CSharp.ModernNET.ImportBefore.targets"
+          Write-Host "=== ImportBefore ==="
+          Get-Content $ib -ErrorAction SilentlyContinue
+          $t = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\WindowsXaml" -Recurse -Filter "Microsoft.Windows.UI.Xaml.CSharp.ModernNET.targets" -ErrorAction SilentlyContinue | Select-Object -First 1
+          Write-Host "=== ModernNET.targets ($($t.FullName)) ==="
+          Get-Content $t.FullName -ErrorAction SilentlyContinue | Select-Object -First 160
 
       - name: Build and package AppX (sideload)
         shell: pwsh
