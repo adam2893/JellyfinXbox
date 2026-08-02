@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
-using Windows.Foundation.Metadata;
 using Windows.UI.Xaml.Controls;
 using DispatcherQueue = Windows.System.DispatcherQueue;
 
@@ -67,9 +66,8 @@ public partial class LoginViewModel : ObservableObject
                 DefaultButton = ContentDialogButton.Primary
             };
 
-            // XamlRoot only exists on 10.0.18362+ (min version is 17763).
-            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 8))
-                dialog.XamlRoot = App.MainWindow.Content.XamlRoot;
+            // UWP ContentDialog resolves the window context on its own
+            // (single-window app), so no XamlRoot assignment needed.
 
             try
             {
