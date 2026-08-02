@@ -101,13 +101,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           if (-not $env:CERT_PASSWORD) { $env:CERT_PASSWORD = "JellyfinXbox-CI-Pass!" }
-          # -t:Publish is the target that runs the MSIX packaging targets
-          # for single-project UWP apps (EnableMsixTooling); -t:Build only
-          # compiles the DLL and never produces an .appx.
-          msbuild JellyfinXbox\JellyfinXbox.csproj -t:Publish `
+          # GenerateAppxPackageOnBuild is what actually triggers MSIX
+          # packaging for UWP projects (used by Files, Bili.Copilot, PPSSPP
+          # CI). -t:Build with AppxPackage=true alone only compiles.
+          msbuild JellyfinXbox\JellyfinXbox.csproj -t:Build `
             -p:Configuration=Release `
             -p:Platform=x64 `
             -p:AppxPackage=true `
+            -p:GenerateAppxPackageOnBuild=true `
             -p:UapAppxPackageBuildMode=Sideload `
             -p:AppxBundle=Never `
             -p:AppxPackageSigningEnabled=true `
@@ -127,7 +128,15 @@ jobs:
           $cer = Join-Path $env:RUNNER_TEMP "JellyfinXbox.cer"
           if (Test-Path $cer) { Copy-Item $cer $out }
           Get-ChildItem $out | ForEach-Object { Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length) }
-          if (-not $pkg) { throw "FAILED: no appx package produced - packaging did not run" }
+          if (-not $pkg) {
+            Write-Host "=== bin tree ==="
+            Get-ChildItem "$env:GITHUB_WORKSPACE\JellyfinXbox\bin" -Recurse -File -ErrorAction SilentlyContinue |
+              ForEach-Object { Write-Host $_.FullName }
+            Write-Host "=== temp AppxPackages tree ==="
+            Get-ChildItem "$env:RUNNER_TEMP" -Recurse -File -ErrorAction SilentlyContinue |
+              ForEach-Object { Write-Host $_.FullName }
+            throw "FAILED: no appx package produced - see tree dumps above"
+          }
 
       - name: Upload AppX artifact
         uses: actions/upload-artifact@v4
