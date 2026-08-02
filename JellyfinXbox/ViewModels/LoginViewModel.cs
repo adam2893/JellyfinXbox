@@ -4,8 +4,8 @@ using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
-using Windows.System;
 using Windows.UI.Xaml.Controls;
+using DispatcherQueue = Windows.System.DispatcherQueue;
 
 namespace JellyfinXbox.ViewModels;
 
