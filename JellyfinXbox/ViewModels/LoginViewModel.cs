@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
+using Windows.Foundation.Metadata;
 using Windows.UI.Xaml.Controls;
 using DispatcherQueue = Windows.System.DispatcherQueue;
 
@@ -63,9 +64,12 @@ public partial class LoginViewModel : ObservableObject
                     "Trust this server for future connections?",
                 PrimaryButtonText = "Trust",
                 CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = App.MainWindow.Content.XamlRoot
+                DefaultButton = ContentDialogButton.Primary
             };
+
+            // XamlRoot only exists on 10.0.18362+ (min version is 17763).
+            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 8))
+                dialog.XamlRoot = App.MainWindow.Content.XamlRoot;
 
             try
             {
