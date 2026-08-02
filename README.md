@@ -80,7 +80,7 @@ JellyfinXbox/
 2. **Visual Studio 2022** (17.0+)
 3. **UWP workload** installed via Visual Studio Installer
 4. **Windows SDK** 10.0.19041.0 or later
-5. **.NET 8.0** SDK
+5. **.NET 9.0** SDK (with the Modern .NET UWP toolchain from Visual Studio 18 / .NET 9)
 6. **Xbox One/Xbox Series X/S** (for deployment)
    - Enable **Dev Mode** on the console (free, but requires a Microsoft Store developer account to activate — see [Xbox Developer Mode activation](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation))
 
