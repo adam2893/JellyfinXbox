@@ -16,13 +16,13 @@ public partial class LoginViewModel : ObservableObject
     private readonly CertificateTrustService _certTrust;
     private readonly DispatcherQueue _dispatcher;
 
-    [ObservableProperty] private string _serverUrl = "";
-    [ObservableProperty] private string _username = "";
-    [ObservableProperty] private string _password = "";
-    [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private string? _errorMessage;
-    [ObservableProperty] private bool _showPasswordField;
-    [ObservableProperty] private string _serverName = "";
+    [ObservableProperty] public partial string ServerUrl { get; set; }
+    [ObservableProperty] public partial string Username { get; set; }
+    [ObservableProperty] public partial string Password { get; set; }
+    [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial string? ErrorMessage { get; set; }
+    [ObservableProperty] public partial bool ShowPasswordField { get; set; }
+    [ObservableProperty] public partial string ServerName { get; set; }
 
     public ObservableCollection<User> PublicUsers { get; } = new();
 
@@ -33,6 +33,12 @@ public partial class LoginViewModel : ObservableObject
         _certTrust = certTrust;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         _certTrust.CertificateRejected += OnCertificateRejected;
+
+        // Former field initializers (partial properties can't carry them).
+        ServerUrl = "";
+        Username = "";
+        Password = "";
+        ServerName = "";
 
         // Prefill the server URL when a previous session was restored.
         if (!string.IsNullOrEmpty(api.ServerUrl))
