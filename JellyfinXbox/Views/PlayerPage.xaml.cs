@@ -150,4 +150,25 @@ public sealed partial class PlayerPage : Page
 
     // Show transport on any interaction
     protected override void OnPointerMoved(PointerRoutedEventArgs e) => ShowTransport();
+
+    // ═══ Seek Slider ═══
+
+    // While the user drags the slider, gate playback position updates so
+    // the thumb doesn't fight the user; the TwoWay binding seeks via
+    // ViewModel.OnSliderSecondsChanged.
+    private void SeekSlider_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        ViewModel.BeginSeek();
+        ShowTransport();
+    }
+
+    private void SeekSlider_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        ViewModel.EndSeek();
+    }
+
+    private void SeekSlider_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        ViewModel.EndSeek();
+    }
 }

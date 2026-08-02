@@ -41,6 +41,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsHdr { get; set; }
     [ObservableProperty] public partial bool IsDirectPlay { get; set; }
 
+    /// <summary>Seek slider position in seconds (TwoWay-bound in XAML).</summary>
+    [ObservableProperty] public partial double SliderSeconds { get; set; }
+
     public TrackSelectionViewModel TrackSelection => _trackSelection;
 
     public PlayerViewModel(JellyfinApiClient api, NavigationService nav)
@@ -261,7 +264,24 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             Position = sender.Position;
             PositionDisplay = FormatTime(Position);
             BufferingProgress = sender.BufferingProgress * 100;
+
+            // Don't overwrite the slider while the user is dragging it,
+            // otherwise the thumb yanks back under their finger.
+            if (!_isUserSeeking)
+                SliderSeconds = sender.Position.TotalSeconds;
         });
+    }
+
+    // Dragging gate: enabled by the slider's pointer handlers in the page.
+    private bool _isUserSeeking;
+    public void BeginSeek() => _isUserSeeking = true;
+    public void EndSeek() => _isUserSeeking = false;
+
+    // User dragged the slider (TwoWay binding) — seek the player.
+    partial void OnSliderSecondsChanged(double value)
+    {
+        if (_isUserSeeking)
+            SeekTo(TimeSpan.FromSeconds(value));
     }
 
     private async void Player_MediaEnded(MediaPlayer sender, object args)

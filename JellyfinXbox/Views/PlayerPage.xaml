@@ -123,10 +123,13 @@
                 <!-- Seek bar -->
                 <Slider x:Name="SeekSlider"
                         MinWidth="600"
-                        Value="{x:Bind ViewModel.Position.TotalSeconds, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.SliderSeconds, Mode=TwoWay}"
                         Maximum="{x:Bind ViewModel.Duration.TotalSeconds, Mode=OneWay}"
                         ThumbToolTipValueConverter="{StaticResource TimeSpanConverter}"
-                        Foreground="{StaticResource AccentBrush}" />
+                        Foreground="{StaticResource AccentBrush}"
+                        PointerPressed="SeekSlider_PointerPressed"
+                        PointerReleased="SeekSlider_PointerReleased"
+                        PointerCaptureLost="SeekSlider_PointerCaptureLost" />
 
                 <!-- Time + controls + info -->
                 <Grid>
