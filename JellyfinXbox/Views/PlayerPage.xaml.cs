@@ -24,9 +24,9 @@ public sealed partial class PlayerPage : Page
     {
         ViewModel = App.Services.GetRequiredService<PlayerViewModel>();
         _gamepad = App.Services.GetRequiredService<GamepadService>();
-        _viewPressedHandler = () => ToggleTrackPanel_Click(this, null);
-        _aPressedHandler = () => PlayPause_Click(this, null);
-        _bPressedHandler = () => Back_Click(this, null);
+        _viewPressedHandler = () => ToggleTrackPanel_Click(this, null!);
+        _aPressedHandler = () => PlayPause_Click(this, null!);
+        _bPressedHandler = () => Back_Click(this, null!);
         InitializeComponent();
 
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
