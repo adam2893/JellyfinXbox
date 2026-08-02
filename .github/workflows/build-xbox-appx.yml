@@ -81,6 +81,15 @@ jobs:
           }
           Write-Host "PFX=$pfx"
 
+          # Import into the current user's personal store so the MSIX
+          # packaging tasks can resolve the signing cert by thumbprint.
+          # (Without this, packaging fails with APPX0105 "Cannot import
+          # the key file" and no .appx is produced.)
+          $securePass = ConvertTo-SecureString $env:CERT_PASSWORD -Force -AsPlainText
+          $imported = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePass
+          Write-Host "Imported PFX thumbprint: $($imported.Thumbprint)"
+          Add-Content -Path $env:GITHUB_ENV -Value "CERT_THUMBPRINT=$($imported.Thumbprint)"
+
       - name: Restore packages
         shell: pwsh
         run: msbuild JellyfinXbox.sln -t:Restore -p:Configuration=Release -p:Platform=x64 -v:minimal
@@ -99,8 +108,7 @@ jobs:
             -p:UapAppxPackageBuildMode=Sideload `
             -p:AppxBundle=Never `
             -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateKeyFile="$env:RUNNER_TEMP/JellyfinXbox.pfx" `
-            -p:PackageCertificatePassword="$env:CERT_PASSWORD" `
+            -p:PackageCertificateThumbprint="$env:CERT_THUMBPRINT" `
             -p:AppxPackageDir="$env:RUNNER_TEMP/AppxPackages/" `
             -v:minimal
 

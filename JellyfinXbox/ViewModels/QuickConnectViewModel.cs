@@ -13,13 +13,13 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
     private readonly NavigationService _nav;
     private CancellationTokenSource? _pollCts;
 
-    [ObservableProperty] private bool _isActive;
-    [ObservableProperty] private string _code = "";
-    [ObservableProperty] private string _statusMessage = "Waiting for connection...";
-    [ObservableProperty] private bool _isSuccess;
-    [ObservableProperty] private bool _isError;
-    [ObservableProperty] private string _errorMessage = "";
-    [ObservableProperty] private string _connectedUserName = "";
+    [ObservableProperty] public partial bool IsActive { get; set; }
+    [ObservableProperty] public partial string Code { get; set; } = "";
+    [ObservableProperty] public partial string StatusMessage { get; set; } = "Waiting for connection...";
+    [ObservableProperty] public partial bool IsSuccess { get; set; }
+    [ObservableProperty] public partial bool IsError { get; set; }
+    [ObservableProperty] public partial string ErrorMessage { get; set; } = "";
+    [ObservableProperty] public partial string ConnectedUserName { get; set; } = "";
 
     public QuickConnectViewModel(JellyfinApiClient api, NavigationService nav)
     {

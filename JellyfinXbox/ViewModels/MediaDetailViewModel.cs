@@ -13,18 +13,18 @@ public partial class MediaDetailViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private bool _isSeries;
-    [ObservableProperty] private BaseItemDto? _item;
-    [ObservableProperty] private string _title = "";
-    [ObservableProperty] private string _subtitle = "";
-    [ObservableProperty] private string? _description;
-    [ObservableProperty] private string? _backdropUrl;
-    [ObservableProperty] private string? _posterUrl;
-    [ObservableProperty] private string? _communityRating;
-    [ObservableProperty] private string? _runtime;
-    [ObservableProperty] private string? _officialRating;
-    [ObservableProperty] private int _selectedSeasonIndex;
+    [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial bool IsSeries { get; set; }
+    [ObservableProperty] public partial BaseItemDto? Item { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "";
+    [ObservableProperty] public partial string Subtitle { get; set; } = "";
+    [ObservableProperty] public partial string? Description { get; set; }
+    [ObservableProperty] public partial string? BackdropUrl { get; set; }
+    [ObservableProperty] public partial string? PosterUrl { get; set; }
+    [ObservableProperty] public partial string? CommunityRating { get; set; }
+    [ObservableProperty] public partial string? Runtime { get; set; }
+    [ObservableProperty] public partial string? OfficialRating { get; set; }
+    [ObservableProperty] public partial int SelectedSeasonIndex { get; set; }
 
     public ObservableCollection<BaseItemDto> Seasons { get; } = new();
     public ObservableCollection<BaseItemDto> Episodes { get; } = new();

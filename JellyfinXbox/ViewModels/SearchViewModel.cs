@@ -13,9 +13,9 @@ public partial class SearchViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] private string _query = "";
-    [ObservableProperty] private bool _isSearching;
-    [ObservableProperty] private bool _hasResults;
+    [ObservableProperty] public partial string Query { get; set; } = "";
+    [ObservableProperty] public partial bool IsSearching { get; set; }
+    [ObservableProperty] public partial bool HasResults { get; set; }
 
     public ObservableCollection<BaseItemDto> Results { get; } = new();
 

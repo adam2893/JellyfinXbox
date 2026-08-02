@@ -11,10 +11,10 @@ public partial class TrackSelectionViewModel : ObservableObject
 {
     private readonly JellyfinApiClient _api;
 
-    [ObservableProperty] private bool _isVisible;
-    [ObservableProperty] private MediaStream? _selectedAudioTrack;
-    [ObservableProperty] private MediaStream? _selectedSubtitleTrack;
-    [ObservableProperty] private bool _subtitlesEnabled = true;
+    [ObservableProperty] public partial bool IsVisible { get; set; }
+    [ObservableProperty] public partial MediaStream? SelectedAudioTrack { get; set; }
+    [ObservableProperty] public partial MediaStream? SelectedSubtitleTrack { get; set; }
+    [ObservableProperty] public partial bool SubtitlesEnabled { get; set; } = true;
 
     public ObservableCollection<MediaStream> AudioTracks { get; } = new();
     public ObservableCollection<MediaStream> SubtitleTracks { get; } = new();

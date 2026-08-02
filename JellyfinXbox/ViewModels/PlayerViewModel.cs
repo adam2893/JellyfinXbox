@@ -23,22 +23,22 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private string? _currentItemId;
     private MediaSourceInfo? _currentMediaSource;
 
-    [ObservableProperty] private bool _isPlaying;
-    [ObservableProperty] private bool _isBuffering;
-    [ObservableProperty] private bool _hasVideo;
-    [ObservableProperty] private string _title = "";
-    [ObservableProperty] private string _subtitle = "";
-    [ObservableProperty] private TimeSpan _position;
-    [ObservableProperty] private TimeSpan _duration;
-    [ObservableProperty] private string _positionDisplay = "0:00";
-    [ObservableProperty] private string _durationDisplay = "0:00";
-    [ObservableProperty] private string _backdropUrl = "";
-    [ObservableProperty] private double _bufferingProgress;
-    [ObservableProperty] private string _currentVideoCodec = "";
-    [ObservableProperty] private string _currentAudioCodec = "";
-    [ObservableProperty] private string _currentResolution = "";
-    [ObservableProperty] private bool _isHdr;
-    [ObservableProperty] private bool _isDirectPlay;
+    [ObservableProperty] public partial bool IsPlaying { get; set; }
+    [ObservableProperty] public partial bool IsBuffering { get; set; }
+    [ObservableProperty] public partial bool HasVideo { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "";
+    [ObservableProperty] public partial string Subtitle { get; set; } = "";
+    [ObservableProperty] public partial TimeSpan Position { get; set; }
+    [ObservableProperty] public partial TimeSpan Duration { get; set; }
+    [ObservableProperty] public partial string PositionDisplay { get; set; } = "0:00";
+    [ObservableProperty] public partial string DurationDisplay { get; set; } = "0:00";
+    [ObservableProperty] public partial string BackdropUrl { get; set; } = "";
+    [ObservableProperty] public partial double BufferingProgress { get; set; }
+    [ObservableProperty] public partial string CurrentVideoCodec { get; set; } = "";
+    [ObservableProperty] public partial string CurrentAudioCodec { get; set; } = "";
+    [ObservableProperty] public partial string CurrentResolution { get; set; } = "";
+    [ObservableProperty] public partial bool IsHdr { get; set; }
+    [ObservableProperty] public partial bool IsDirectPlay { get; set; }
 
     public TrackSelectionViewModel TrackSelection => _trackSelection;
 

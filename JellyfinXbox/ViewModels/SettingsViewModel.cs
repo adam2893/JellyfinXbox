@@ -13,16 +13,16 @@ public partial class SettingsViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] private UserSettings _settings;
-    [ObservableProperty] private string _serverUrl = "";
-    [ObservableProperty] private string _serverName = "";
-    [ObservableProperty] private string _serverVersion = "";
-    [ObservableProperty] private string _userName = "";
-    [ObservableProperty] private int _selectedBitrateIndex;
-    [ObservableProperty] private int _selectedSubtitleModeIndex;
-    [ObservableProperty] private int _subtitleFontSize;
-    [ObservableProperty] private bool _autoPlayNextEpisode;
-    [ObservableProperty] private bool _preferForeignSubtitles;
+    [ObservableProperty] public partial UserSettings Settings { get; set; }
+    [ObservableProperty] public partial string ServerUrl { get; set; } = "";
+    [ObservableProperty] public partial string ServerName { get; set; } = "";
+    [ObservableProperty] public partial string ServerVersion { get; set; } = "";
+    [ObservableProperty] public partial string UserName { get; set; } = "";
+    [ObservableProperty] public partial int SelectedBitrateIndex { get; set; }
+    [ObservableProperty] public partial int SelectedSubtitleModeIndex { get; set; }
+    [ObservableProperty] public partial int SubtitleFontSize { get; set; }
+    [ObservableProperty] public partial bool AutoPlayNextEpisode { get; set; }
+    [ObservableProperty] public partial bool PreferForeignSubtitles { get; set; }
 
     public ObservableCollection<string> BitrateLabels { get; } = new();
     public ObservableCollection<string> SubtitleModes { get; } = new();
@@ -34,7 +34,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         _api = api;
         _nav = nav;
-        _settings = api.Settings;
+        Settings = api.Settings;
 
         // Populate bitrate options
         foreach (var (label, _) in UserSettings.BitratePresets)
@@ -81,7 +81,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (value >= 0 && value < _bitrateValues.Length)
         {
-            _settings.MaxStreamingBitrate = _bitrateValues[value];
+            Settings.MaxStreamingBitrate = _bitrateValues[value];
             ApplySettings();
         }
     }
@@ -90,32 +90,32 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (value >= 0 && value < _subtitleModeValues.Length)
         {
-            _settings.SubtitleMode = _subtitleModeValues[value];
+            Settings.SubtitleMode = _subtitleModeValues[value];
             ApplySettings();
         }
     }
 
     partial void OnSubtitleFontSizeChanged(int value)
     {
-        _settings.SubtitleFontSize = value;
+        Settings.SubtitleFontSize = value;
         ApplySettings();
     }
 
     partial void OnAutoPlayNextEpisodeChanged(bool value)
     {
-        _settings.AutoPlayNextEpisode = value;
+        Settings.AutoPlayNextEpisode = value;
         ApplySettings();
     }
 
     partial void OnPreferForeignSubtitlesChanged(bool value)
     {
-        _settings.PreferForeignSubtitles = value;
+        Settings.PreferForeignSubtitles = value;
         ApplySettings();
     }
 
     private void ApplySettings()
     {
-        _api.UpdateSettings(_settings);
+        _api.UpdateSettings(Settings);
     }
 
     [RelayCommand]

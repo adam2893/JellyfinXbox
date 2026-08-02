@@ -13,10 +13,10 @@ public partial class HomeViewModel : ObservableObject
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
 
-    [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private bool _hasContinueWatching;
-    [ObservableProperty] private bool _hasNextUp;
-    [ObservableProperty] private string _displayName = "";
+    [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial bool HasContinueWatching { get; set; }
+    [ObservableProperty] public partial bool HasNextUp { get; set; }
+    [ObservableProperty] public partial string DisplayName { get; set; } = "";
 
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
     public ObservableCollection<BaseItemDto> NextUp { get; } = new();
