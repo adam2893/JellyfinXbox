@@ -1,3 +1,6 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
 namespace JellyfinXbox.ViewModels;
 
 public partial class ShellViewModel : ObservableObject
