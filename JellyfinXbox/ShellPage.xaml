@@ -31,8 +31,7 @@
                             Padding="0 40">
                     <!-- Logo -->
                     <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0 0 0 24">
-                        <FontIcon Glyph="&#xE945;" FontSize="32"
-                                  Foreground="{StaticResource AccentBrush}" />
+                        <Image Source="Assets/Logo.png" Width="48" Height="48" Stretch="Uniform" />
                         <TextBlock Text="BoxJellyfish" FontSize="10"
                                    Foreground="{StaticResource TextMutedBrush}"
                                    HorizontalAlignment="Center" />
