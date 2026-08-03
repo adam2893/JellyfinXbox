@@ -14,10 +14,10 @@
                 <FontIcon Glyph="&#xE945;" FontSize="56"
                           Foreground="{StaticResource AccentBrush}"
                           HorizontalAlignment="Center" />
-                <TextBlock Text="Jellyfin" FontSize="32" FontWeight="SemiBold"
+                <TextBlock Text="BoxJellyfish" FontSize="32" FontWeight="SemiBold"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            HorizontalAlignment="Center" />
-                <TextBlock Text="for Xbox Series" FontSize="16"
+                <TextBlock Text="a Jellyfin client for Xbox Series" FontSize="16"
                            Foreground="{StaticResource TextSecondaryBrush}"
                            HorizontalAlignment="Center" />
             </StackPanel>

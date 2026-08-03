@@ -1,6 +1,6 @@
-# Jellyfin for Xbox Series
+# BoxJellyfish
 
-A beautiful, fast Jellyfin client built natively for Xbox Series X/S with **hardware AV1 decoding** and **native OPUS audio** support.
+A beautiful, fast **Jellyfin client** built natively for Xbox Series X/S with **hardware AV1 decoding** and **native OPUS audio** support.
 
 ## ✨ Features
 
@@ -41,7 +41,7 @@ A beautiful, fast Jellyfin client built natively for Xbox Series X/S with **hard
 ```
 JellyfinXbox/
 ├── JellyfinXbox.sln
-├── JellyfinXbox/                  # UWP App
+├── JellyfinXbox/                  # UWP App (BoxJellyfish)
 │   ├── App.xaml                   # DI setup, theme resources
 │   ├── ShellPage.xaml             # Navigation shell
 │   ├── Views/
@@ -141,7 +141,7 @@ The workflow in [`.github/workflows/build-xbox-appx.yml`](.github/workflows/buil
 
 ## 🎬 Media Codec Support
 
-The Xbox device profile is tuned for maximum direct play:
+The Xbox device profile is tuned for maximum direct play with any Jellyfin server:
 
 | Codec | Support | Notes |
 |-------|---------|-------|
