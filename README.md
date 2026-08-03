@@ -178,7 +178,7 @@ When direct play isn't possible, the server transcodes to:
 - [ ] Live TV support
 - [ ] Music library view with now playing bar
 - [ ] Photo slideshow mode
-- [ ] User profile switching
+- [x] User profile switching (via Settings → Switch User / login screen)
 - [ ] Offline downloads (USB storage)
 - [ ] Custom aspect ratio / zoom controls
 - [ ] HDR tone mapping toggle

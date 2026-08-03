@@ -1,0 +1,94 @@
+<Page
+    x:Class="JellyfinXbox.Views.DebugPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:JellyfinClient.Models"
+    xmlns:conv="using:JellyfinXbox.Converters">
+
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <conv:InvertBoolConverter x:Key="InvertBoolConverter" />
+    </Page.Resources>
+
+    <Grid Background="{StaticResource SurfacePrimaryBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Hidden" Padding="60 40">
+            <StackPanel Spacing="24" MaxWidth="900">
+
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+                            Padding="12" CornerRadius="8" Click="Back_Click">
+                        <FontIcon Glyph="&#xE72B;" FontSize="18" />
+                    </Button>
+                    <TextBlock Text="API Self-Check" FontSize="36" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap">
+                    Probes every Jellyfin endpoint this app depends on and reports
+                    each call's result. Run this on the Xbox against your server to
+                    confirm auth, library routes, playback URLs and images all work.
+                </TextBlock>
+
+                <!-- Run button -->
+                <Button Content="Run checks"
+                        Command="{x:Bind ViewModel.RunCommand}"
+                        IsEnabled="{x:Bind ViewModel.IsRunning, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}"
+                        Style="{StaticResource AccentButtonStyle}"
+                        FontSize="16" FontWeight="SemiBold"
+                        Padding="28 14" CornerRadius="10"
+                        HorizontalAlignment="Left" />
+
+                <ProgressRing IsActive="{x:Bind ViewModel.IsRunning, Mode=OneWay}"
+                              Width="32" Height="32"
+                              Foreground="{StaticResource AccentBrush}" />
+
+                <!-- Results -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Results}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:SelfCheckResult">
+                            <Grid Padding="16 12" ColumnSpacing="12" Margin="0 4"
+                                  Background="{StaticResource SurfaceSecondaryBrush}"
+                                  CornerRadius="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Pass/fail glyph -->
+                                <TextBlock Grid.Column="0" FontSize="16" FontWeight="Bold"
+                                           Text="&#xE73E;"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           Visibility="{x:Bind Ok, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <TextBlock Grid.Column="0" FontSize="16" FontWeight="Bold"
+                                           Text="&#xE711;"
+                                           Foreground="{StaticResource ErrorBrush}"
+                                           Visibility="{x:Bind Ok, Converter={StaticResource InvertBoolConverter}, ConverterParameter=bool}" />
+
+                                <!-- Name + detail -->
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{x:Bind Name}" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{x:Bind Detail}" FontSize="13"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- Elapsed -->
+                                <TextBlock Grid.Column="2" FontSize="12"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{x:Bind ElapsedMs}" /><Run Text=" ms" />
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

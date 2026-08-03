@@ -127,4 +127,16 @@ public partial class SettingsViewModel : ObservableObject
         _api.Logout();
         _nav.NavigateTo(typeof(LoginPage));
     }
+
+    /// <summary>Return to the login screen to pick a different user
+    /// (session is cleared; public users are listed there).</summary>
+    [RelayCommand]
+    private void SwitchUser()
+    {
+        _api.Logout();
+        _nav.NavigateTo(typeof(LoginPage));
+    }
+
+    [RelayCommand]
+    private void OpenDiagnostics() => _nav.NavigateTo(typeof(DebugPage));
 }

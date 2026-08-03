@@ -123,6 +123,22 @@
             <!--              ACTIONS                     -->
             <!-- ═══════════════════════════════════════ -->
             <StackPanel Spacing="16">
+                <Button Content="Switch User"
+                        Command="{x:Bind ViewModel.SwitchUserCommand}"
+                        Background="{StaticResource SurfaceTertiaryBrush}"
+                        Foreground="{StaticResource TextPrimaryBrush}"
+                        FontSize="16"
+                        Padding="24 14"
+                        CornerRadius="10"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="API Self-Check"
+                        Command="{x:Bind ViewModel.OpenDiagnosticsCommand}"
+                        Background="{StaticResource SurfaceTertiaryBrush}"
+                        Foreground="{StaticResource TextPrimaryBrush}"
+                        FontSize="16"
+                        Padding="24 14"
+                        CornerRadius="10"
+                        HorizontalAlignment="Stretch" />
                 <Button Content="Sign Out"
                         Command="{x:Bind ViewModel.LogoutCommand}"
                         Background="#3D1010"

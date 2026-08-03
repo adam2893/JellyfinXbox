@@ -530,6 +530,150 @@ public class JellyfinApiClient
     public TimeSpan? GetRuntime(BaseItemDto item) =>
         item.RunTimeTicks.HasValue ? TimeSpan.FromTicks(item.RunTimeTicks.Value) : null;
 
+    /// <summary>
+    /// Probes every API surface the app depends on and reports per-call
+    /// success, so failures (auth, routes, playback URLs) are visible on
+    /// the device instead of silently swallowed.
+    /// </summary>
+    public async Task<List<SelfCheckResult>> RunSelfCheckAsync()
+    {
+        var results = new List<SelfCheckResult>();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        async Task Check(string name, Func<Task<(bool ok, string detail)>> probe)
+        {
+            var start = sw.ElapsedMilliseconds;
+            try
+            {
+                var (ok, detail) = await probe();
+                results.Add(new SelfCheckResult
+                {
+                    Name = name,
+                    Ok = ok,
+                    Detail = detail,
+                    ElapsedMs = sw.ElapsedMilliseconds - start
+                });
+            }
+            catch (Exception ex)
+            {
+                results.Add(new SelfCheckResult
+                {
+                    Name = name,
+                    Ok = false,
+                    Detail = ex.Message,
+                    ElapsedMs = sw.ElapsedMilliseconds - start
+                });
+            }
+        }
+
+        // 1. Server reachability (no auth needed)
+        await Check("Server (System/Info/Public)", async () =>
+        {
+            var info = await GetServerInfoAsync();
+            if (info == null) return (false, "no response");
+            return (true, $"{info.ServerName} v{info.Version}");
+        });
+
+        // 2. Session state
+        await Check("Session restored", () => Task.FromResult(
+            (IsAuthenticated, $"token: {(!string.IsNullOrEmpty(AccessToken) ? "present" : "missing")}, user: {CurrentUser?.Name ?? "none"}")));
+
+        if (!IsAuthenticated)
+        {
+            results.Add(new SelfCheckResult { Name = "Library (skipped)", Ok = true, Detail = "not authenticated" });
+            return results;
+        }
+
+        // 3. Views
+        await Check("Views (UserViews)", async () =>
+        {
+            var views = await GetViewsAsync();
+            return (true, $"{views.Count} library view(s)");
+        });
+
+        // 4. Resume
+        await Check("Resume (UserItems/Resume)", async () =>
+        {
+            var items = await GetResumeItemsAsync(5);
+            return (true, $"{items.Items.Count} item(s)");
+        });
+
+        // 5. Library items (first view)
+        await Check("Library items (Items)", async () =>
+        {
+            var views = await GetViewsAsync();
+            var view = views.FirstOrDefault();
+            if (view == null) return (false, "no library views");
+            var items = await GetItemsAsync(view.Id, limit: 5);
+            return (true, $"{items.Items.Count} item(s) in '{view.Name}'");
+        });
+
+        // 6. Search
+        await Check("Search (Items?SearchTerm)", async () =>
+        {
+            var items = await SearchAsync("test", limit: 5);
+            return (true, $"{items.Items.Count} result(s)");
+        });
+
+        // 7. Next up
+        await Check("Next up (Shows/NextUp)", async () =>
+        {
+            var items = await GetNextUpAsync(limit: 5);
+            return (true, $"{items.Items.Count} episode(s)");
+        });
+
+        // 8. PlaybackInfo + stream URL (the critical path for playback)
+        await Check("Playback info + stream URL", async () =>
+        {
+            var views = await GetViewsAsync();
+            var view = views.FirstOrDefault();
+            if (view == null) return (false, "no library views");
+
+            var items = await GetItemsAsync(view.Id, includeItemTypes: "Movie,Episode", limit: 3);
+            var item = items.Items.FirstOrDefault();
+            if (item == null) return (false, "no playable items found");
+
+            var playback = await GetPlaybackInfoAsync(item.Id);
+            var source = playback?.MediaSources.FirstOrDefault();
+            if (source == null) return (false, "no media sources returned");
+
+            // Verify the stream URL authenticates (api_key query param).
+            var streamUrl = $"{ServerUrl}/Videos/{item.Id}/stream?static=true&MediaSourceId={source.Id}&api_key={AccessToken}";
+            using var probe = new HttpRequestMessage(HttpMethod.Head, streamUrl);
+            var response = await _http.SendAsync(probe);
+            var code = (int)response.StatusCode;
+            var ok = code is 200 or 206 or 302 or 401 or 403; // 401/403 = auth param issue, still a signal
+            return (code == 200 || code == 206,
+                $"'{item.Name}' source='{source.Id}' directPlay={source.SupportsDirectPlay} stream HTTP {code}");
+        });
+
+        // 9. Image loading
+        await Check("Image endpoint", async () =>
+        {
+            var views = await GetViewsAsync();
+            var view = views.FirstOrDefault();
+            if (view == null) return (false, "no library views");
+            var items = await GetItemsAsync(view.Id, limit: 1);
+            var item = items.Items.FirstOrDefault();
+            if (item == null) return (false, "no items");
+            using var probe = new HttpRequestMessage(HttpMethod.Head,
+                $"{ServerUrl}{GetImageUrl(item.Id, maxWidth: 128)}");
+            var response = await _http.SendAsync(probe);
+            return (response.IsSuccessStatusCode, $"HTTP {(int)response.StatusCode}");
+        });
+
+        // 10. Quick Connect availability
+        await Check("Quick Connect (Initiate)", async () =>
+        {
+            var qc = await QuickConnectInitAsync();
+            return qc != null
+                ? (true, $"enabled, code '{qc.Code}' (secret discarded)")
+                : (false, "not enabled on this server");
+        });
+
+        return results;
+    }
+
     public string FormatRuntime(TimeSpan? runtime)
     {
         if (!runtime.HasValue) return "";

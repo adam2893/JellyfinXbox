@@ -80,6 +80,7 @@ public partial class App : Application
         services.AddTransient<ShellViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<QuickConnectViewModel>();
+        services.AddTransient<DebugViewModel>();
 
         // Services
         services.AddSingleton<NavigationService>();
