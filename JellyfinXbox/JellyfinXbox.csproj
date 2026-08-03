@@ -12,6 +12,14 @@
     <!-- Required for [ObservableProperty] on partial properties
          (MVVM Toolkit source generator, see MVVMTK0041). -->
     <LangVersion>preview</LangVersion>
+    <!-- Bundle the .NET 9 UWP runtime inside the MSIX. Without this the
+         package is framework-dependent: it installs but cannot start on
+         machines that don't have the .NET UWP runtime (it is NOT inbox
+         on Windows), so the app dies right after the splash screen.
+         JIT (not PublishAot): DI and System.Text.Json reflection need
+         the full runtime. -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Modern .NET UWP: activates the VS UWP XAML toolchain (XAML compiler,
          Windows.UI.Xaml projection via CsWinRT, appx packaging). VS 18 /
