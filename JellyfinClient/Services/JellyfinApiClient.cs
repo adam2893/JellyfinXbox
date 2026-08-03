@@ -219,19 +219,20 @@ public class JellyfinApiClient
     {
         try
         {
-            var response = await _http.PostAsync("/QuickConnect/Init", null);
+            var response = await _http.PostAsync("/QuickConnect/Initiate", null);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<QuickConnectInitResponse>(_jsonOpts);
         }
         catch { return null; }
     }
 
-    public async Task<QuickConnectAuthorizeResponse?> QuickConnectCheckAuthAsync(string secret)
+    public async Task<QuickConnectAuthorizeResponse?> QuickConnectCheckAuthAsync(string code)
     {
         try
         {
+            // Current API takes the display code, not the secret.
             var result = await _http.GetFromJsonAsync<QuickConnectAuthorizeResponse>(
-                $"/QuickConnect/Authorize?secret={secret}", _jsonOpts);
+                $"/QuickConnect/Authorize?code={Uri.EscapeDataString(code)}", _jsonOpts);
             return result;
         }
         catch { return null; }
@@ -241,7 +242,9 @@ public class JellyfinApiClient
     {
         try
         {
-            var response = await _http.PostAsync($"/QuickConnect/Connect?secret={secret}", null);
+            // Exchange the secret for an access token.
+            var body = new { Secret = secret };
+            var response = await _http.PostAsJsonAsync("/Users/AuthenticateWithQuickConnect", body, _jsonOpts);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<AuthenticationResult>(_jsonOpts);
             if (result != null)
@@ -265,7 +268,7 @@ public class JellyfinApiClient
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<ItemsResult>("/Users/Items/Views", _jsonOpts);
+            var result = await _http.GetFromJsonAsync<ItemsResult>($"/UserViews?userId={CurrentUser!.Id}", _jsonOpts);
             if (result?.Items == null) return new();
 
             return result.Items.Select(i => new ViewItem
@@ -282,7 +285,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetItemsAsync(string parentId, string? sortBy = null, string? sortOrder = null,
         int startIndex = 0, int limit = 40, string? filters = null, string? includeItemTypes = null)
     {
-        var url = $"/Users/{CurrentUser!.Id}/Items?ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
+        var url = $"/Items?userId={CurrentUser!.Id}&ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
 
         if (!string.IsNullOrEmpty(sortBy))
             url += $"&SortBy={sortBy}";
@@ -303,7 +306,7 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetResumeItemsAsync(int limit = 12)
     {
-        var url = $"/Users/{CurrentUser!.Id}/Items/Resume?Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
+        var url = $"/UserItems/Resume?userId={CurrentUser!.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
         try
         {
             var result = await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts);
@@ -327,7 +330,7 @@ public class JellyfinApiClient
 
     public async Task<BaseItemDto?> GetItemAsync(string itemId)
     {
-        var url = $"/Users/{CurrentUser!.Id}/Items/{itemId}?Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres";
+        var url = $"/Items/{itemId}?userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres";
         try
         {
             return await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts);
@@ -337,7 +340,7 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetSeasonsAsync(string seriesId)
     {
-        var url = $"/Shows/{seriesId}/Seasons?UserId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
+        var url = $"/Shows/{seriesId}/Seasons?userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -347,7 +350,7 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetEpisodesAsync(string seriesId, string seasonId)
     {
-        var url = $"/Shows/{seriesId}/Episodes?SeasonId={seasonId}&UserId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"/Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -361,7 +364,7 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> SearchAsync(string query, int limit = 20)
     {
-        var url = $"/Users/{CurrentUser!.Id}/Items?SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"/Items?userId={CurrentUser!.Id}&SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -385,11 +388,13 @@ public class JellyfinApiClient
         else if (Settings.SubtitleMode == "Off")
             url += $"&SubtitleStreamIndex=-2"; // Disable subtitles
 
-        var body = new { DeviceProfileJson = DeviceProfileBuilder.GetXboxProfileJson() };
-
+        // The PlaybackInfo body must carry the DeviceProfile as an object
+        // (PlaybackInfoDto.DeviceProfile), not as a string — otherwise the
+        // server ignores it and direct-play decisions are made blind.
         try
         {
-            var response = await _http.PostAsJsonAsync(url, body);
+            var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson());
+            var response = await _http.PostAsJsonAsync(url, profile, _jsonOpts);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<PlaybackInfoResponse>(_jsonOpts);
         }
@@ -400,15 +405,15 @@ public class JellyfinApiClient
     {
         try
         {
-            var data = new Dictionary<string, string>
+            var data = new Dictionary<string, object?>
             {
                 ["ItemId"] = itemId,
-                ["CanSeek"] = "true"
+                ["CanSeek"] = true
             };
             if (audioStreamIndex != null) data["AudioStreamIndex"] = audioStreamIndex;
             if (subtitleStreamIndex != null) data["SubtitleStreamIndex"] = subtitleStreamIndex;
 
-            await _http.PostAsync($"/Sessions/Playing", new FormUrlEncodedContent(data));
+            await _http.PostAsJsonAsync("/Sessions/Playing", data, _jsonOpts);
         }
         catch { /* fire and forget */ }
     }
@@ -417,13 +422,13 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.PostAsync($"/Sessions/Playing/Progress", new FormUrlEncodedContent(new Dictionary<string, string>
+            await _http.PostAsJsonAsync("/Sessions/Playing/Progress", new Dictionary<string, object?>
             {
                 ["ItemId"] = itemId,
-                ["PositionTicks"] = positionTicks.ToString(),
-                ["IsPaused"] = isPaused.ToString(),
-                ["IsMuted"] = "false"
-            }));
+                ["PositionTicks"] = positionTicks,
+                ["IsPaused"] = isPaused,
+                ["IsMuted"] = false
+            }, _jsonOpts);
         }
         catch { /* fire and forget */ }
     }
@@ -432,11 +437,11 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.PostAsync($"/Sessions/Playing/Stopped", new FormUrlEncodedContent(new Dictionary<string, string>
+            await _http.PostAsJsonAsync("/Sessions/Playing/Stopped", new Dictionary<string, object?>
             {
                 ["ItemId"] = itemId,
-                ["PositionTicks"] = positionTicks.ToString()
-            }));
+                ["PositionTicks"] = positionTicks
+            }, _jsonOpts);
         }
         catch { /* fire and forget */ }
     }
@@ -445,7 +450,7 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.DeleteAsync($"/Users/{CurrentUser!.Id}/PlayedItems/{itemId}");
+            await _http.DeleteAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser!.Id}");
         }
         catch { }
     }
@@ -454,7 +459,7 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.PostAsync($"/Users/{CurrentUser!.Id}/FavoriteItems/{itemId}", null);
+            await _http.PostAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser!.Id}", null);
         }
         catch { }
     }
@@ -466,7 +471,9 @@ public class JellyfinApiClient
         int? audioIndex = null, int? subtitleIndex = null)
     {
         var baseUrl = ServerUrl;
-        var url = $"/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&ApiKey={AccessToken}";
+        // Note: Jellyfin's auth middleware reads the query token as
+        // "api_key" (lowercase), not "ApiKey".
+        var url = $"/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={AccessToken}";
 
         // If we need to switch tracks on a transcode, we need a full transcode URL
         if (!source.SupportsDirectPlay && !string.IsNullOrEmpty(source.TranscodingUrl))
@@ -476,7 +483,7 @@ public class JellyfinApiClient
                 url += $"&AudioStreamIndex={audioIndex.Value}";
             if (subtitleIndex.HasValue)
                 url += $"&SubtitleStreamIndex={subtitleIndex.Value}";
-            return $"{baseUrl}{url}&ApiKey={AccessToken}";
+            return $"{baseUrl}{url}&api_key={AccessToken}";
         }
 
         // For direct play / direct stream, track changes may need transcoding

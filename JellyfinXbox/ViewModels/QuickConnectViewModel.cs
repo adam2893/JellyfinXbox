@@ -55,7 +55,7 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
         _pollCts = new CancellationTokenSource();
         try
         {
-            await PollForAuthorization(initResult.Secret, _pollCts.Token);
+            await PollForAuthorization(initResult.Secret, initResult.Code, _pollCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -64,7 +64,7 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task PollForAuthorization(string secret, CancellationToken ct)
+    private async Task PollForAuthorization(string secret, string code, CancellationToken ct)
     {
         int attempts = 0;
         const int maxAttempts = 120; // 2 minutes at 1s interval
@@ -74,14 +74,14 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
             await Task.Delay(1000, ct);
             attempts++;
 
-            var authResult = await _api.QuickConnectCheckAuthAsync(secret);
+            var authResult = await _api.QuickConnectCheckAuthAsync(code);
             if (authResult == null) continue;
 
-            if (authResult.Authorized)
+            if (authResult.Authenticated)
             {
-                StatusMessage = $"Authorized! Connecting as {authResult.UserName}...";
+                StatusMessage = $"Authorized! Connecting...";
 
-                // Exchange for access token
+                // Exchange the secret for an access token
                 var connectResult = await _api.QuickConnectConnectAsync(secret);
                 if (connectResult != null)
                 {

@@ -164,15 +164,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         var baseUrl = _api.ServerUrl;
 
         if (source.SupportsDirectPlay && !string.IsNullOrEmpty(source.DirectStreamUrl))
-            return $"{baseUrl}{source.DirectStreamUrl}&ApiKey={_api.AccessToken}";
+            return $"{baseUrl}{source.DirectStreamUrl}&api_key={_api.AccessToken}";
 
         if (source.SupportsDirectStream)
-            return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&ApiKey={_api.AccessToken}";
+            return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={_api.AccessToken}";
 
         if (!string.IsNullOrEmpty(source.TranscodingUrl))
-            return $"{baseUrl}{source.TranscodingUrl}&ApiKey={_api.AccessToken}";
+            return $"{baseUrl}{source.TranscodingUrl}&api_key={_api.AccessToken}";
 
-        return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&ApiKey={_api.AccessToken}";
+        return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={_api.AccessToken}";
     }
 
     /// <summary>
@@ -316,7 +316,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             IsBuffering = true;
             Debug.WriteLine("[Player] Direct play failed - retrying with transcode");
 
-            var url = $"{_api.ServerUrl}{_currentMediaSource.TranscodingUrl}&ApiKey={_api.AccessToken}";
+            var url = $"{_api.ServerUrl}{_currentMediaSource.TranscodingUrl}&api_key={_api.AccessToken}";
             _player!.Source = MediaSource.CreateFromUri(new Uri(url));
             return;
         }

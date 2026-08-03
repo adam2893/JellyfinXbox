@@ -21,17 +21,26 @@ public class QuickConnectInitResponse
 
 public class QuickConnectAuthorizeResponse
 {
-    [JsonPropertyName("Authorized")]
-    public bool Authorized { get; set; }
+    [JsonPropertyName("Authenticated")]
+    public bool Authenticated { get; set; }
 
-    [JsonPropertyName("UserId")]
-    public string? UserId { get; set; }
+    [JsonPropertyName("Secret")]
+    public string? Secret { get; set; }
 
-    [JsonPropertyName("UserName")]
-    public string? UserName { get; set; }
+    [JsonPropertyName("Code")]
+    public string? Code { get; set; }
 
-    [JsonPropertyName("Application")]
-    public string? Application { get; set; }
+    [JsonPropertyName("DeviceId")]
+    public string? DeviceId { get; set; }
+
+    [JsonPropertyName("DeviceName")]
+    public string? DeviceName { get; set; }
+
+    [JsonPropertyName("AppName")]
+    public string? AppName { get; set; }
+
+    [JsonPropertyName("AppVersion")]
+    public string? AppVersion { get; set; }
 }
 
 public class QuickConnectConnectResponse
