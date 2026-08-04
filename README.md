@@ -20,21 +20,23 @@ A beautiful, fast **Jellyfin client** built natively for Xbox Series X/S with **
 - **Continue Watching** — Resume where you left off
 - **Next Up** — Episode queue for TV shows
 - **Search** — Real-time search across your library
+- **Switch User** — Profile switching from Settings (returns to the public-user picker)
+- **API Self-Check** — On-device diagnostics that probe every Jellyfin endpoint the app uses
+- **Per-Server TLS Trust** — Self-signed server certificates are accepted only after you explicitly trust them (persisted by thumbprint)
 
 ## 🎮 Controls
 
 | Input | Action |
 |-------|--------|
-| **A** | Select / Play |
-| **B** | Back |
-| **X** | Favorite |
-| **Y** | Info |
-| **D-Pad** | Navigate |
-| **Left Stick** | Navigate |
-| **Right Trigger** | Seek forward |
-| **Left Trigger** | Seek backward |
-| **Menu** (☰) | Settings |
-| **View** (⊞) | Audio/Subtitle selection |
+| **A** | Select / Play / Pause |
+| **B** | Back / Stop |
+| **D-Pad / Left Stick** | Navigate (native focus) |
+| **Right Trigger** | Seek forward (hold to repeat) |
+| **Left Trigger** | Seek backward (hold to repeat) |
+| **Menu** (☰) | Settings (shell) / show transport (player) |
+| **View** (⊞) | Quick Connect (shell) / Audio & Subtitle panel (player) |
+
+> X (favorite) and Y (info) from the original design are not yet mapped — there are no favorite/info controls in the UI yet.
 
 ## 🏗 Architecture
 
@@ -43,25 +45,32 @@ JellyfinXbox/
 ├── JellyfinXbox.sln
 ├── JellyfinXbox/                  # UWP App (BoxJellyfish)
 │   ├── App.xaml                   # DI setup, theme resources
-│   ├── ShellPage.xaml             # Navigation shell
+│   ├── App.xaml.cs                # DI, TLS trust handler, suspend handling
+│   ├── ShellPage.xaml             # Navigation shell + gamepad shortcuts
 │   ├── Views/
-│   │   ├── LoginPage.xaml         # Server connect + auth + Quick Connect
+│   │   ├── LoginPage.xaml         # Server connect + auth + Quick Connect + TLS trust prompt
 │   │   ├── HomePage.xaml          # Library hub
 │   │   ├── MediaDetailPage.xaml   # Hero backdrop + info
-│   │   ├── PlayerPage.xaml        # Cinematic player + track selection
+│   │   ├── PlayerPage.xaml        # Cinematic player + track selection + gamepad
 │   │   ├── SearchPage.xaml        # Search
-│   │   ├── SettingsPage.xaml      # Quality, subtitles, playback, server
+│   │   ├── SettingsPage.xaml      # Quality, subtitles, playback, server, actions
 │   │   ├── QuickConnectPage.xaml  # Phone-to-Xbox linking
-│   │   └── LibraryPage.xaml       # Library browsing
-│   ├── ViewModels/                # MVVM with CommunityToolkit
+│   │   ├── LibraryPage.xaml       # Library browsing
+│   │   └── DebugPage.xaml         # API self-check diagnostics
+│   ├── ViewModels/                # MVVM with CommunityToolkit (partial properties)
 │   ├── Services/
 │   │   ├── NavigationService.cs
-│   │   └── GamepadService.cs      # Xbox controller input
+│   │   ├── GamepadService.cs      # Xbox controller input (poll-based)
+│   │   ├── SessionStore.cs        # LocalSettings persistence (ISessionStore)
+│   │   └── CertificateTrustService.cs  # Per-server cert trust allowlist
 │   ├── Converters/
 │   └── Styles/
-├── JellyfinClient/                # API Library (portable)
-│   ├── Models/Models.cs           # Jellyfin API DTOs
-│   └── Services/JellyfinApiClient.cs
+├── JellyfinClient/                # API Library (portable, net8.0)
+│   ├── Models/Models.cs           # Jellyfin API DTOs + device profile
+│   ├── Models/QuickConnect.cs     # Quick Connect DTOs + user settings
+│   ├── Models/SelfCheck.cs        # API self-check results
+│   ├── Services/ISessionStore.cs  # Persistence abstraction
+│   └── Services/JellyfinApiClient.cs  # Jellyfin API client (v12 contract)
 └── README.md
 ```
 
@@ -116,7 +125,7 @@ dotnet build JellyfinXbox/JellyfinXbox.csproj -c Debug
 # produces a signed package + matching certificate for you)
 ```
 
-> 💡 For a properly signed, Xbox-ready `.msix` (plus the matching certificate), use the GitHub Actions workflow below — it handles packaging and signing for you.
+> 💡 For a properly signed, Xbox-ready `.msix` (plus the matching certificate), use the GitHub Actions workflow below — it handles packaging and signing for you. The package is **self-contained** (the .NET runtime is bundled inside the MSIX), so it runs on any Windows 10/11 machine or Xbox without extra runtime installs.
 
 ## 🤖 Building with GitHub Actions (no Windows needed)
 
@@ -126,13 +135,20 @@ The workflow in [`.github/workflows/build-xbox-appx.yml`](.github/workflows/buil
 1. Push this repo to GitHub
 2. Go to **Actions → "Build Xbox AppX (UWP sideload)" → Run workflow** (it also runs automatically on push to `main`/`master` and on pull requests)
 3. When it finishes, download the **`jellyfinxbox-appx`** artifact, which contains:
-   - `JellyfinXbox_*.appx` — the signed sideload package
+   - `JellyfinXbox_*.msix` — the signed, self-contained sideload package (~45 MB)
+   - `Microsoft.VCLibs.*.appx` — the VC++ runtime dependency (install alongside the MSIX)
    - `JellyfinXbox.cer` — the code-signing certificate
+
+### Install on Windows 10/11
+1. Trust the certificate: double-click `JellyfinXbox.cer` → Install Certificate → **Local Machine** → **Trusted Root Certification Authorities**. (Use the `.cer` from the same zip as the `.msix` — every build mints a fresh cert.)
+2. Enable sideloading: Settings → Privacy & security → For developers → **Developer Mode**.
+3. Install: right-click `JellyfinXbox_1.0.0.0_x64.msix` → **Install** (or `Add-AppxPackage -Path .\JellyfinXbox_1.0.0.0_x64.msix -DependencyPath .\Microsoft.VCLibs.x64.14.00.appx` in an admin PowerShell).
+4. Launch **BoxJellyfish** from Start, connect to your server, and run **Settings → API Self-Check** to validate the connection.
 
 ### Install on your Xbox
 1. Put the console in **Developer Mode** — install the free **Xbox Dev Mode** app from the Store, activate it with a Store developer account, then *Switch and restart* ([official docs](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation))
 2. Install the certificate on the console (via **Dev Home** or the **Windows Device Portal** at `http://<xbox-ip>:11443`)
-3. Install the app — Dev Home's app installer (or `Add-AppxPackage` through the Device Portal) with the `.appx` file
+3. Install the app — Dev Home's app installer (or `Add-AppxPackage` through the Device Portal) with the `.msix` file
 
 > ⚠️ **Certificates:** by default the workflow generates a **new** self-signed certificate every run (subject `CN=AutoClaw`, matching the manifest `Publisher`), so the `.cer` must be re-installed after each build. For a stable certificate — install it once and keep it across all builds:
 > 1. Create a `.pfx` on Windows: `New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=AutoClaw" -KeyExportPolicy Exportable -KeySpec Signature -KeyUsage DigitalSignature` then `Export-PfxCertificate`
@@ -148,17 +164,16 @@ The Xbox device profile is tuned for maximum direct play with any Jellyfin serve
 | **AV1** | ✅ Native HW | Xbox Series X/S hardware decoder |
 | **HEVC/H.265** | ✅ Native HW | Xbox hardware decoder |
 | **H.264/AVC** | ✅ Native HW | Universal support |
-| **VP9** | ✅ Native SW | Software decode |
+| **VP9** | ✅ Native | Software decode |
 | **OPUS** | ✅ Native | Direct play, no transcoding |
 | **AAC** | ✅ Native | Direct play |
 | **FLAC** | ✅ Native | Lossless audio direct play |
-| **TrueHD** | ✅ Pass-through | |
-| **DTS/X** | ✅ Pass-through | |
+| **TrueHD** | 🔄 Transcoded | No Xbox Media Foundation decoder |
+| **DTS/X** | 🔄 Transcoded | No Xbox Media Foundation decoder |
 
 ### Transcoding (fallback)
-When direct play isn't possible, the server transcodes to:
-- **Video**: AV1 or H.264 via HLS
-- **Audio**: OPUS or AAC
+- If a source can't be direct-played (e.g. TrueHD/DTS audio, unsupported container), the player retries automatically with the server's transcode URL before giving up.
+- The server transcodes to: **Video**: AV1 or H.264 via HLS — **Audio**: OPUS or AAC.
 
 ## 🎨 Design Language
 
@@ -175,13 +190,24 @@ When direct play isn't possible, the server transcodes to:
 - [x] Settings page
 - [x] Quick Connect
 - [x] Video quality control
+- [x] User profile switching (Settings → Switch User)
+- [x] API self-check diagnostics
+- [x] Gamepad controls (seek triggers, Menu/View shortcuts)
+- [x] Transcode fallback when direct play fails
+- [x] Per-server TLS certificate trust
+- [ ] X (favorite) / Y (info) gamepad shortcuts + favorite UI
 - [ ] Live TV support
 - [ ] Music library view with now playing bar
 - [ ] Photo slideshow mode
-- [x] User profile switching (via Settings → Switch User / login screen)
 - [ ] Offline downloads (USB storage)
 - [ ] Custom aspect ratio / zoom controls
 - [ ] HDR tone mapping toggle
+
+## 🏷 Branding
+
+- **App name:** BoxJellyfish — per [Jellyfin's branding policy](https://jellyfin.org/docs/general/contributing/branding/), the "Jellyfin" name is reserved for the project and its official clients; third-party clients must use their own name and may reference Jellyfin as "a Jellyfin client".
+- **Logo:** custom pixel-art jellyfish using Jellyfin's purple→blue color gradient on a unique shape (the gradient is permitted by the branding policy; the official logo shape is not).
+- **Identity:** `com.boxjellyfish.app`, publisher `CN=AutoClaw`.
 
 ## 📄 License
 
