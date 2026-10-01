@@ -49,7 +49,10 @@
                                  Tag="search"
                                  Style="{StaticResource NavRadioButtonStyle}"
                                  Content="&#xE721;"
-                                 Click="NavButton_Click" />
+                                  Click="NavButton_Click" />
+                    <RadioButton x:Name="NavCollections" Tag="collections" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE8A4;" Click="NavButton_Click" />
+                    <RadioButton x:Name="NavPlaylists" Tag="playlists" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE8A5;" Click="NavButton_Click" />
+                    <RadioButton x:Name="NavFavorites" Tag="favorites" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE734;" Click="NavButton_Click" />
                 </StackPanel>
 
                 <!-- Bottom nav items -->

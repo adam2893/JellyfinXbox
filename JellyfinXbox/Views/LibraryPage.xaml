@@ -11,7 +11,7 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Padding="60 40 60 0" Spacing="24">
-            <StackPanel Orientation="Horizontal" Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="20">
                 <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
                         Padding="12" CornerRadius="8" Click="Back_Click">
                     <FontIcon Glyph="&#xE72B;" FontSize="18" />
@@ -53,7 +53,7 @@
         </StackPanel>
 
         <!-- Items grid -->
-        <ScrollViewer Grid.Row="1" Padding="60 24">
+        <ScrollViewer Grid.Row="1" Padding="64 32 64 64">
             <GridView x:Name="ItemsGrid"
                       ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}"
                       SelectionMode="None"
@@ -88,5 +88,15 @@
                 </GridView.ItemTemplate>
             </GridView>
         </ScrollViewer>
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="44" Height="44"
+                          Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="520"
+                       Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+            <Button Content="Retry" Command="{x:Bind ViewModel.RetryCommand}"
+                    Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+            <TextBlock Text="Nothing here yet" Foreground="{StaticResource TextSecondaryBrush}"
+                       Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+        </StackPanel>
     </Grid>
 </Page>

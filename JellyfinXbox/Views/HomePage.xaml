@@ -7,7 +7,8 @@
     <ScrollViewer VerticalScrollBarVisibility="Hidden"
                   HorizontalScrollMode="Disabled"
                   VerticalSnapPointsType="None">
-        <StackPanel Padding="60 40 60 60" Spacing="48">
+        <Grid>
+        <StackPanel Padding="64 48 64 72" Spacing="52">
 
             <!-- ═══════════════════════════════════════ -->
             <!--          WELCOME HEADER                 -->
@@ -109,7 +110,7 @@
                                     </Border>
                                     <!-- Progress bar -->
                                     <StackPanel VerticalAlignment="Bottom"
-                                                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                                                Background="{StaticResource SurfaceSecondaryBrush}"
                                                 Padding="12 8" Spacing="4">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="14" FontWeight="SemiBold"
@@ -159,7 +160,7 @@
                                                Stretch="UniformToFill" />
                                     </Border>
                                     <StackPanel VerticalAlignment="Bottom"
-                                                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                                                Background="{StaticResource SurfaceSecondaryBrush}"
                                                 Padding="12 8" Spacing="2">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="14" FontWeight="SemiBold"
@@ -268,5 +269,19 @@
             </StackPanel>
 
         </StackPanel>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"
+                    Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="44" Height="44" />
+            <TextBlock Text="Loading your library…" Foreground="{StaticResource TextSecondaryBrush}" />
+        </StackPanel>
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520" Padding="24"
+                Background="{StaticResource SurfaceSecondaryBrush}"
+                Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+            <StackPanel Spacing="12"><TextBlock Text="Couldn’t load Home" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" TextWrapping="Wrap" />
+                <Button Content="Retry" Command="{x:Bind ViewModel.RetryCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Border>
+        </Grid>
     </ScrollViewer>
 </Page>

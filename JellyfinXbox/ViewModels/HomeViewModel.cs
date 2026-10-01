@@ -18,6 +18,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool HasContinueWatching { get; set; }
     [ObservableProperty] public partial bool HasNextUp { get; set; }
     [ObservableProperty] public partial string DisplayName { get; set; }
+    [ObservableProperty] public partial string ErrorMessage { get; set; }
 
     public ObservableCollection<BaseItemDto> Libraries { get; } = new();
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
@@ -44,6 +45,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
         if (!_api.IsAuthenticated) return;
 
         IsLoading = true;
+        ErrorMessage = "";
         DisplayName = _api.CurrentUser?.Name ?? "";
 
         try
@@ -85,10 +87,12 @@ public partial class HomeViewModel : ObservableObject, IDisposable
             foreach (var item in movieTask.Result.Items) LatestMovies.Add(item);
             foreach (var item in showTask.Result.Items) LatestShows.Add(item);
         }
-        catch { /* silently handle */ }
-
-        IsLoading = false;
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsLoading = false; }
     }
+
+    [RelayCommand]
+    private Task RetryAsync() => LoadDataAsync();
 
     [RelayCommand]
     private void NavigateToItem(BaseItemDto item)

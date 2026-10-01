@@ -25,3 +25,5 @@ packages/
 *.pfx
 *.p12
 reasonix.toml
+
+.slim/deepwork/

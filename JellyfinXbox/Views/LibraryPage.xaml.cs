@@ -35,6 +35,13 @@ public sealed partial class LibraryPage : Page
             ViewModel.LibraryName = tuple.Item2;
             await ViewModel.LoadAsync(tuple.Item1);
         }
+        else if (e.Parameter is string mode)
+        {
+            ViewModel.LibraryName = mode switch { "collections" => "Collections", "playlists" => "Playlists", _ => "Favorites" };
+            if (mode == "collections") await ViewModel.LoadCollectionsAsync();
+            else if (mode == "playlists") await ViewModel.LoadPlaylistsAsync();
+            else await ViewModel.LoadFavoritesAsync();
+        }
     }
 
     private void Item_Click(object sender, ItemClickEventArgs e)

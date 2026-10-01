@@ -21,10 +21,10 @@
             <Color x:Key="TextPrimary">#F0EFF4</Color>
             <Color x:Key="TextSecondary">#9B99A4</Color>
             <Color x:Key="TextMuted">#5E5D66</Color>
-            <Color x:Key="Accent">#6C63FF</Color>
-            <Color x:Key="AccentHover">#857CFF</Color>
-            <Color x:Key="AccentPressed">#554DE6</Color>
-            <Color x:Key="AccentGlow">#6C63FF40</Color>
+            <Color x:Key="Accent">#8FB5C4</Color>
+            <Color x:Key="AccentHover">#A8C8D4</Color>
+            <Color x:Key="AccentPressed">#7197A6</Color>
+            <Color x:Key="AccentGlow">#8FB5C420</Color>
             <Color x:Key="Success">#34D399</Color>
             <Color x:Key="Warning">#FBBF24</Color>
             <Color x:Key="Error">#F87171</Color>
@@ -44,6 +44,7 @@
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHover}" />
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressed}" />
             <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlow}" />
+            <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Accent}" />
 
         </ResourceDictionary>
     </Application.Resources>

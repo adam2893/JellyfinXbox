@@ -48,6 +48,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string CurrentResolution { get; set; }
     [ObservableProperty] public partial bool IsHdr { get; set; }
     [ObservableProperty] public partial bool IsDirectPlay { get; set; }
+    [ObservableProperty] public partial bool HasPlaybackError { get; set; }
+    [ObservableProperty] public partial string PlaybackErrorMessage { get; set; } = "";
 
     /// <summary>Seek slider position in seconds (TwoWay-bound in XAML).</summary>
     [ObservableProperty] public partial double SliderSeconds { get; set; }
@@ -113,6 +115,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _upNextTimer?.Stop();
         _upNextTimer = null;
         _upNextDismissed = false;
+        HasPlaybackError = false;
+        PlaybackErrorMessage = "";
         // Detach the old media instance before awaiting network work so late
         // events from it cannot update the newly requested item's state.
         if (_player != null)
@@ -125,8 +129,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             _player.Dispose();
             _player = null;
         }
-        var item = await _api.GetItemAsync(itemId);
-        if (item == null || generation != _loadGeneration) return;
+        var itemResult = await _api.GetItemResultAsync(itemId);
+        var item = itemResult.Item;
+        if (item == null)
+        {
+            PlaybackErrorMessage = itemResult.Error?.Message ?? "This item could not be found.";
+            HasPlaybackError = true;
+            return;
+        }
+        if (generation != _loadGeneration) return;
 
         _currentItemId = itemId;
         _triedTranscodeFallback = false;
@@ -222,12 +233,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         // Use settings bitrate
         var maxBitrate = _api.Settings.MaxStreamingBitrate;
         IsBuffering = true;
-        var playbackInfo = await _api.GetPlaybackInfoAsync(itemId, maxBitrate);
+        var playbackResult = await _api.GetPlaybackInfoResultAsync(itemId, maxBitrate);
+        var playbackInfo = playbackResult.PlaybackInfo;
         if (generation != _loadGeneration) return;
 
         if (playbackInfo?.MediaSources == null || playbackInfo.MediaSources.Count == 0)
         {
             IsBuffering = false;
+            PlaybackErrorMessage = playbackResult.Error?.Message ?? "This item could not be played. Check the server connection and try again.";
+            HasPlaybackError = true;
             return;
         }
 
@@ -238,8 +252,18 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         Debug.WriteLine($"[Player] Playing item {itemId} at {RedactPlaybackUrl(mediaUrl)}");
         Debug.WriteLine($"[Player] Source: {source.Name}, DirectPlay: {source.SupportsDirectPlay}, Container: {source.Container}");
 
-        InitializePlayer();
-        _player!.Source = MediaSource.CreateFromUri(new Uri(mediaUrl));
+        try
+        {
+            InitializePlayer();
+            _player!.Source = MediaSource.CreateFromUri(new Uri(mediaUrl));
+        }
+        catch (Exception ex)
+        {
+            IsBuffering = false;
+            PlaybackErrorMessage = $"Playback setup failed: {ex.Message}";
+            HasPlaybackError = true;
+            return;
+        }
 
         // Load track info for selection UI
         _trackSelection.LoadTracks(source);
@@ -298,18 +322,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private string BuildMediaUrl(string itemId, MediaSourceInfo source)
     {
-        var baseUrl = _api.ServerUrl;
-
         if (source.SupportsDirectPlay && !string.IsNullOrEmpty(source.DirectStreamUrl))
-            return $"{baseUrl}{source.DirectStreamUrl}&api_key={_api.AccessToken}";
+            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, source.DirectStreamUrl), ("api_key", _api.AccessToken));
 
         if (source.SupportsDirectStream)
-            return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={_api.AccessToken}";
+            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, $"Videos/{itemId}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
 
         if (!string.IsNullOrEmpty(source.TranscodingUrl))
-            return $"{baseUrl}{source.TranscodingUrl}&api_key={_api.AccessToken}";
+            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, source.TranscodingUrl), ("api_key", _api.AccessToken));
 
-        return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={_api.AccessToken}";
+        return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, $"Videos/{itemId}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
     }
 
     private static string RedactPlaybackUrl(string url)
@@ -390,6 +412,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             DurationDisplay = FormatTime(Duration);
             HasVideo = sender.PlaybackSession.NaturalVideoHeight > 0;
             IsBuffering = false;
+            HasPlaybackError = false;
             Debug.WriteLine($"[Player] Opened. Duration: {Duration}, Video: {sender.PlaybackSession.NaturalVideoWidth}x{sender.PlaybackSession.NaturalVideoHeight}");
 
             if (_initialSeekPosition.HasValue && _initialSeekPosition.Value > TimeSpan.Zero)
@@ -582,13 +605,23 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         }
 
         await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
+        PlaybackErrorMessage = "Playback stopped unexpectedly. Retry or go back and try another source.";
+        HasPlaybackError = true;
+    }
+
+    [RelayCommand]
+    private async Task RetryPlayback()
+    {
+        if (string.IsNullOrEmpty(_currentItemId)) return;
+        HasPlaybackError = false;
+        await LoadAsync(_currentItemId, Position > TimeSpan.Zero ? Position : null);
     }
 
     private async Task ReportProgress(string itemId, long generation)
     {
         try
         {
-            if (generation == _loadGeneration && _currentItemId == itemId && IsPlaying && _player != null)
+            if (generation == _loadGeneration && _currentItemId == itemId && _player != null)
                 await _api.ReportPlaybackProgressAsync(itemId, Position.Ticks, !IsPlaying);
         }
         catch (Exception ex)
@@ -616,7 +649,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private void SeekForward()
     {
         if (_player?.PlaybackSession != null)
-            _player.PlaybackSession.Position += TimeSpan.FromSeconds(10);
+            _player.PlaybackSession.Position = Duration > TimeSpan.Zero && _player.PlaybackSession.Position + TimeSpan.FromSeconds(10) > Duration ? Duration : _player.PlaybackSession.Position + TimeSpan.FromSeconds(10);
     }
 
     [RelayCommand]
@@ -632,7 +665,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SeekTo(TimeSpan position)
     {
-        if (_player?.PlaybackSession != null) _player.PlaybackSession.Position = position;
+        if (_player?.PlaybackSession != null) _player.PlaybackSession.Position = Duration > TimeSpan.Zero ? (position < TimeSpan.Zero ? TimeSpan.Zero : position > Duration ? Duration : position) : (position < TimeSpan.Zero ? TimeSpan.Zero : position);
     }
 
     [RelayCommand]

@@ -17,6 +17,7 @@ public partial class SearchViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string Query { get; set; }
     [ObservableProperty] public partial bool IsSearching { get; set; }
     [ObservableProperty] public partial bool HasResults { get; set; }
+    [ObservableProperty] public partial string ErrorMessage { get; set; }
 
     public ObservableCollection<BaseItemDto> Results { get; } = new();
 
@@ -25,6 +26,7 @@ public partial class SearchViewModel : ObservableObject, IDisposable
         _api = api;
         _nav = nav;
         Query = "";
+        ErrorMessage = "";
     }
 
     partial void OnQueryChanged(string value)
@@ -53,6 +55,7 @@ public partial class SearchViewModel : ObservableObject, IDisposable
             if (token.IsCancellationRequested) return;
 
             IsSearching = true;
+            ErrorMessage = "";
             var result = await _api.SearchAsync(query);
             if (token.IsCancellationRequested) return;
 
@@ -64,6 +67,7 @@ public partial class SearchViewModel : ObservableObject, IDisposable
         {
             // Cancelled due to new keystroke
         }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
         finally
         {
             if (!token.IsCancellationRequested)
@@ -83,6 +87,7 @@ public partial class SearchViewModel : ObservableObject, IDisposable
         try
         {
             IsSearching = true;
+            ErrorMessage = "";
             var result = await _api.SearchAsync(query);
             if (token.IsCancellationRequested) return;
 
@@ -91,12 +96,16 @@ public partial class SearchViewModel : ObservableObject, IDisposable
             HasResults = Results.Count > 0;
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
         finally
         {
             if (!token.IsCancellationRequested)
                 IsSearching = false;
         }
     }
+
+    [RelayCommand]
+    private Task RetryAsync() => SearchAsync(Query);
 
     [RelayCommand]
     private void NavigateToItem(BaseItemDto item) =>

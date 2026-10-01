@@ -180,6 +180,14 @@ public class JellyfinApiClient
 
     private void ClearSession(bool keepServerUrl = false)
     {
+        AccessToken = null;
+        CurrentUser = null;
+        if (!keepServerUrl)
+        {
+            ServerUrl = null;
+            ServerInfo = null;
+            Settings = UserSettings.Default;
+        }
         if (_store == null) return;
         if (!keepServerUrl)
             _store.Set(StoreKeyServerUrl, null);
@@ -247,10 +255,8 @@ public class JellyfinApiClient
 
     public void Logout(bool keepServerUrl = true)
     {
-        AccessToken = null;
-        CurrentUser = null;
-        ApplyAuth();
         ClearSession(keepServerUrl);
+        ApplyAuth();
         if (!keepServerUrl)
         {
             ServerUrl = null;
@@ -295,7 +301,7 @@ public class JellyfinApiClient
             var response = await _http.PostAsJsonAsync("Users/AuthenticateWithQuickConnect", body, _jsonOpts);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<AuthenticationResult>(_jsonOpts);
-            if (result != null)
+            if (result != null && !string.IsNullOrWhiteSpace(result.AccessToken) && result.User != null)
             {
                 AccessToken = result.AccessToken;
                 CurrentUser = result.User;
@@ -392,6 +398,17 @@ public class JellyfinApiClient
         catch { return null; }
     }
 
+    public async Task<(BaseItemDto? Item, Exception? Error)> GetItemResultAsync(string itemId)
+    {
+        if (CurrentUser == null) return (null, new InvalidOperationException("Not signed in."));
+        try
+        {
+            var url = $"Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
+            return (await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts), null);
+        }
+        catch (Exception ex) { return (null, ex); }
+    }
+
     public async Task<ItemsResult> GetSimilarItemsAsync(string itemId, int limit = 12)
     {
         if (CurrentUser == null) return new();
@@ -423,6 +440,14 @@ public class JellyfinApiClient
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
         }
+        catch { return new(); }
+    }
+
+    public async Task<ItemsResult> GetFavoriteItemsAsync(int limit = 100, int startIndex = 0)
+    {
+        if (CurrentUser == null) return new();
+        var url = $"Users/{CurrentUser.Id}/Items?Filters=IsFavorite&Recursive=true&StartIndex={startIndex}&Limit={limit}&SortBy=SortName&SortOrder=Ascending&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        try { return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new(); }
         catch { return new(); }
     }
 
@@ -500,6 +525,20 @@ public class JellyfinApiClient
             return await response.Content.ReadFromJsonAsync<PlaybackInfoResponse>(_jsonOpts);
         }
         catch { return null; }
+    }
+
+    public async Task<(PlaybackInfoResponse? PlaybackInfo, Exception? Error)> GetPlaybackInfoResultAsync(string itemId, long maxBitrate = 120_000_000)
+    {
+        if (CurrentUser == null) return (null, new InvalidOperationException("Not signed in."));
+        try
+        {
+            var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson(maxBitrate));
+            var url = $"Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
+            var response = await _http.PostAsJsonAsync(url, profile, _jsonOpts);
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<PlaybackInfoResponse>(_jsonOpts), null);
+        }
+        catch (Exception ex) { return (null, ex); }
     }
 
     public async Task ReportPlaybackStartAsync(string itemId, string? audioStreamIndex = null, string? subtitleStreamIndex = null)
@@ -707,8 +746,8 @@ public class JellyfinApiClient
 
     public string GetTrickplayTileUrl(string itemId, int width, int tileIndex)
     {
-        var tokenParam = !string.IsNullOrEmpty(AccessToken) ? $"&api_key={AccessToken}" : "";
-        return $"{ServerUrl}/Videos/{itemId}/Trickplay/{width}/{tileIndex}.jpg?{tokenParam}".TrimEnd('&', '?');
+        var url = JellyfinEndpointBuilder.Combine(ServerUrl, $"Videos/{itemId}/Trickplay/{width}/{tileIndex}.jpg");
+        return JellyfinEndpointBuilder.WithQuery(url, ("api_key", AccessToken));
     }
 
     #endregion

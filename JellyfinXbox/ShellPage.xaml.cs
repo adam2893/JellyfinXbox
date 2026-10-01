@@ -92,6 +92,7 @@ public sealed partial class ShellPage : Page
             {
                 "home" => typeof(HomePage),
                 "search" => typeof(SearchPage),
+                "collections" or "playlists" or "favorites" => typeof(LibraryPage),
                 "quickconnect" => typeof(QuickConnectPage),
                 "settings" => typeof(SettingsPage),
                 _ => null
@@ -99,7 +100,9 @@ public sealed partial class ShellPage : Page
 
             if (targetType != null && ContentFrame.CurrentSourcePageType != targetType)
             {
-                _nav.NavigateTo(targetType);
+                if (tag is "collections" or "playlists" or "favorites")
+                    _nav.NavigateTo(targetType, tag);
+                else _nav.NavigateTo(targetType);
             }
         }
     }
@@ -110,7 +113,10 @@ public sealed partial class ShellPage : Page
         SideNavRail.Visibility = hideRail ? Visibility.Collapsed : Visibility.Visible;
 
         NavHome.IsChecked = e.SourcePageType == typeof(HomePage);
-        NavSearch.IsChecked = e.SourcePageType == typeof(SearchPage);
+            NavSearch.IsChecked = e.SourcePageType == typeof(SearchPage);
+            NavCollections.IsChecked = false;
+            NavPlaylists.IsChecked = false;
+            NavFavorites.IsChecked = false;
         NavQuickConnect.IsChecked = e.SourcePageType == typeof(QuickConnectPage);
         NavSettings.IsChecked = e.SourcePageType == typeof(SettingsPage);
     }
