@@ -46,29 +46,29 @@ public partial class App : Application
         services.AddSingleton<JellyfinApiClient>(sp =>
         {
             var trust = sp.GetRequiredService<CertificateTrustService>();
-            var handler = new HttpClientHandler
+            HttpClientHandler CreateHandler()
             {
-                // Self-hosted Jellyfin servers commonly use self-signed
-                // certs, so we can't require a valid chain. Instead accept
-                // only certificates the user explicitly trusted (persisted
-                // by thumbprint); anything else is rejected and prompts the
-                // user on the login page.
-                ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
+                return new HttpClientHandler
                 {
-                    if (errors == SslPolicyErrors.None) return true;
-
-                    if (certificate is X509Certificate2 cert2)
+                    // Self-hosted Jellyfin servers commonly use self-signed
+                    // certs, so we can't require a valid chain. Instead accept
+                    // only certificates the user explicitly trusted.
+                    ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
                     {
-                        var thumbprint = cert2.Thumbprint;
-                        if (trust.IsTrusted(thumbprint)) return true;
-
-                        var host = request?.RequestUri?.Host ?? "?";
-                        trust.ReportRejection(host, thumbprint, cert2.Issuer);
+                        if (errors == SslPolicyErrors.None) return true;
+                        if (certificate is X509Certificate2 cert2)
+                        {
+                            var thumbprint = cert2.Thumbprint;
+                            var host = request?.RequestUri?.Host ?? "?";
+                            if (trust.IsTrusted(host, thumbprint)) return true;
+                            trust.ReportRejection(host, thumbprint, cert2.Issuer);
+                        }
+                        return false;
                     }
-                    return false;
-                }
-            };
-            return new JellyfinApiClient(new HttpClient(handler), sp.GetRequiredService<ISessionStore>());
+                };
+            }
+            HttpClient CreateClient() => new(CreateHandler());
+            return new JellyfinApiClient(CreateClient(), sp.GetRequiredService<ISessionStore>(), CreateClient);
         });
 
         // View models

@@ -24,6 +24,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private string? _currentItemId;
     private MediaSourceInfo? _currentMediaSource;
     private bool _triedTranscodeFallback;
+    private long _loadGeneration;
+    private bool _upNextDismissed;
 
     private IntroTimestampsResult? _introTimestamps;
     private TrickplayInfoDto? _trickplayInfo;
@@ -105,8 +107,26 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     public async Task LoadAsync(string itemId, TimeSpan? startPosition = null)
     {
+        var generation = Interlocked.Increment(ref _loadGeneration);
+        _reportTimer?.Dispose();
+        _reportTimer = null;
+        _upNextTimer?.Stop();
+        _upNextTimer = null;
+        _upNextDismissed = false;
+        // Detach the old media instance before awaiting network work so late
+        // events from it cannot update the newly requested item's state.
+        if (_player != null)
+        {
+            _player.MediaOpened -= Player_MediaOpened;
+            _player.PlaybackSession.PlaybackStateChanged -= Playback_PlaybackStateChanged;
+            _player.PlaybackSession.PositionChanged -= Playback_PositionChanged;
+            _player.MediaEnded -= Player_MediaEnded;
+            _player.MediaFailed -= Player_MediaFailed;
+            _player.Dispose();
+            _player = null;
+        }
         var item = await _api.GetItemAsync(itemId);
-        if (item == null) return;
+        if (item == null || generation != _loadGeneration) return;
 
         _currentItemId = itemId;
         _triedTranscodeFallback = false;
@@ -131,7 +151,6 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         ShowSkipPrompt = false;
         ShowUpNextOverlay = false;
         ShowTrickplayPreview = false;
-        _upNextTimer?.Stop();
         _nextEpisode = null;
         _introTimestamps = null;
         _trickplayInfo = null;
@@ -151,13 +170,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         // Fetch intro timestamps in background
         _ = Task.Run(async () =>
         {
-            _introTimestamps = await _api.GetIntroTimestampsAsync(itemId);
+            var result = await _api.GetIntroTimestampsAsync(itemId);
+            if (generation == _loadGeneration) _introTimestamps = result;
         });
 
         // Fetch trickplay manifest in background
         _ = Task.Run(async () =>
         {
-            _trickplayInfo = await _api.GetTrickplayManifestAsync(itemId);
+            var result = await _api.GetTrickplayManifestAsync(itemId);
+            if (generation == _loadGeneration) _trickplayInfo = result;
         });
 
         if (item.Type == "Episode")
@@ -175,7 +196,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                     {
                         var eps = await _api.GetEpisodesAsync(item.SeriesId, item.SeasonId ?? "");
                         var idx = eps.Items.FindIndex(e => e.Id == item.Id);
-                        if (idx >= 0 && idx < eps.Items.Count - 1)
+                        if (generation == _loadGeneration && idx >= 0 && idx < eps.Items.Count - 1)
                         {
                             _nextEpisode = eps.Items[idx + 1];
                             _dispatcher.TryEnqueue(() =>
@@ -202,6 +223,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         var maxBitrate = _api.Settings.MaxStreamingBitrate;
         IsBuffering = true;
         var playbackInfo = await _api.GetPlaybackInfoAsync(itemId, maxBitrate);
+        if (generation != _loadGeneration) return;
 
         if (playbackInfo?.MediaSources == null || playbackInfo.MediaSources.Count == 0)
         {
@@ -213,7 +235,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _currentMediaSource = source;
 
         var mediaUrl = BuildMediaUrl(itemId, source);
-        Debug.WriteLine($"[Player] Playing: {mediaUrl}");
+        Debug.WriteLine($"[Player] Playing item {itemId} at {RedactPlaybackUrl(mediaUrl)}");
         Debug.WriteLine($"[Player] Source: {source.Name}, DirectPlay: {source.SupportsDirectPlay}, Container: {source.Container}");
 
         InitializePlayer();
@@ -224,7 +246,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         _ = _api.ReportPlaybackStartAsync(itemId);
 
-        _reportTimer = new Timer(async _ => await ReportProgress(), null, 5000, 10000);
+        _reportTimer = new Timer(async _ => await ReportProgress(itemId, generation), null, 5000, 10000);
     }
 
     private MediaSourceInfo SelectMediaSource(List<MediaSourceInfo> sources)
@@ -288,6 +310,12 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             return $"{baseUrl}{source.TranscodingUrl}&api_key={_api.AccessToken}";
 
         return $"{baseUrl}/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={_api.AccessToken}";
+    }
+
+    private static string RedactPlaybackUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return "<invalid url>";
+        return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";
     }
 
     /// <summary>
@@ -355,6 +383,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private void Player_MediaOpened(MediaPlayer sender, object args)
     {
+        if (!ReferenceEquals(sender, _player)) return;
         _dispatcher.TryEnqueue(() =>
         {
             Duration = sender.PlaybackSession.NaturalDuration;
@@ -417,7 +446,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                     ShowSkipPrompt = true;
                     SkipPromptText = "Skip Credits";
 
-                    if (_nextEpisode != null && !ShowUpNextOverlay)
+                     if (_nextEpisode != null && !_upNextDismissed && !ShowUpNextOverlay)
                     {
                         TriggerUpNextCountdown();
                     }
@@ -439,7 +468,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             }
 
             // 3. Up Next check near end of episode (last 25s)
-            if (_nextEpisode != null && !ShowUpNextOverlay && Duration.TotalSeconds > 60)
+            if (_nextEpisode != null && !_upNextDismissed && !ShowUpNextOverlay && Duration.TotalSeconds > 60)
             {
                 var remaining = (Duration - sender.Position).TotalSeconds;
                 if (remaining <= 25 && remaining > 0)
@@ -491,7 +520,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private void TriggerUpNextCountdown()
     {
-        if (_nextEpisode == null || ShowUpNextOverlay) return;
+        if (_nextEpisode == null || _upNextDismissed || ShowUpNextOverlay || !_api.Settings.AutoPlayNextEpisode) return;
         ShowUpNextOverlay = true;
         UpNextCountdown = 10;
         _upNextTimer?.Stop();
@@ -510,6 +539,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private async void Player_MediaEnded(MediaPlayer sender, object args)
     {
+        if (!ReferenceEquals(sender, _player)) return;
         Debug.WriteLine("[Player] Media ended.");
         IsPlaying = false;
 
@@ -523,7 +553,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         _dispatcher.TryEnqueue(() =>
         {
-            if (_nextEpisode != null)
+            if (_nextEpisode != null && _api.Settings.AutoPlayNextEpisode && !_upNextDismissed)
             {
                 TriggerUpNextCountdown();
             }
@@ -532,6 +562,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private async void Player_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
     {
+        if (!ReferenceEquals(sender, _player)) return;
         Debug.WriteLine($"[Player] Failed: {args.Error}, Extended: {args.ExtendedErrorCode}");
         IsBuffering = false;
         IsPlaying = false;
@@ -553,12 +584,12 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
     }
 
-    private async Task ReportProgress()
+    private async Task ReportProgress(string itemId, long generation)
     {
         try
         {
-            if (_currentItemId != null && IsPlaying && _player != null)
-                await _api.ReportPlaybackProgressAsync(_currentItemId, Position.Ticks, !IsPlaying);
+            if (generation == _loadGeneration && _currentItemId == itemId && IsPlaying && _player != null)
+                await _api.ReportPlaybackProgressAsync(itemId, Position.Ticks, !IsPlaying);
         }
         catch (Exception ex)
         {
@@ -679,6 +710,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AdjustAudioOffset(int deltaMs)
     {
+        // MediaPlaybackSession has no audio/subtitle offset API. Keep the existing
+        // state for UI compatibility, but do not claim this changes playback.
         AudioOffsetMs = Math.Clamp(AudioOffsetMs + deltaMs, -5000, 5000);
         AudioOffsetDisplay = AudioOffsetMs == 0 ? "0 ms" : $"{(AudioOffsetMs > 0 ? "+" : "")}{AudioOffsetMs} ms";
     }
@@ -686,6 +719,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AdjustSubtitleOffset(int deltaMs)
     {
+        // MediaPlaybackSession has no audio/subtitle offset API. Keep the existing
+        // state for UI compatibility, but do not claim this changes playback.
         SubtitleOffsetMs = Math.Clamp(SubtitleOffsetMs + deltaMs, -5000, 5000);
         SubtitleOffsetDisplay = SubtitleOffsetMs == 0 ? "0 ms" : $"{(SubtitleOffsetMs > 0 ? "+" : "")}{SubtitleOffsetMs} ms";
     }
@@ -706,6 +741,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     {
         _upNextTimer?.Stop();
         ShowUpNextOverlay = false;
+        _upNextDismissed = true;
     }
 
     #endregion

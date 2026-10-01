@@ -9,13 +9,27 @@ namespace JellyfinClient.Services;
 
 public class JellyfinApiClient
 {
+    private static string ReplaceQueryParameter(string url, string name, string value)
+    {
+        var hash = url.IndexOf('#');
+        var fragment = hash >= 0 ? url[hash..] : "";
+        var withoutFragment = hash >= 0 ? url[..hash] : url;
+        var question = withoutFragment.IndexOf('?');
+        var path = question >= 0 ? withoutFragment[..question] : withoutFragment;
+        var query = question >= 0 ? withoutFragment[(question + 1)..] : "";
+        var parts = query.Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => !p.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase)).ToList();
+        parts.Add($"{name}={Uri.EscapeDataString(value)}");
+        return path + "?" + string.Join("&", parts) + fragment;
+    }
     private const string StoreKeyServerUrl = "session.serverUrl";
     private const string StoreKeyAccessToken = "session.accessToken";
     private const string StoreKeyCurrentUser = "session.currentUser";
     private const string StoreKeySettings = "session.settings";
     private const string StoreKeyServerInfo = "session.serverInfo";
 
-    private readonly HttpClient _http;
+    private HttpClient _http;
+    private readonly Func<HttpClient>? _httpFactory;
     private readonly ISessionStore? _store;
     private readonly JsonSerializerOptions _jsonOpts;
 
@@ -30,9 +44,10 @@ public class JellyfinApiClient
     public event Action? OnAuthenticationChanged;
     public event Action? OnSettingsChanged;
 
-    public JellyfinApiClient(HttpClient http, ISessionStore? sessionStore = null)
+    public JellyfinApiClient(HttpClient http, ISessionStore? sessionStore = null, Func<HttpClient>? httpFactory = null)
     {
         _http = http;
+        _httpFactory = httpFactory ?? (() => new HttpClient());
         _store = sessionStore;
         _jsonOpts = new JsonSerializerOptions
         {
@@ -45,8 +60,18 @@ public class JellyfinApiClient
 
     public void SetServerUrl(string url)
     {
-        ServerUrl = url.TrimEnd('/');
-        _http.BaseAddress = new Uri(ServerUrl);
+        var normalized = url.TrimEnd('/');
+        if (!string.Equals(ServerUrl, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            if (ServerUrl != null && _httpFactory != null)
+            {
+                _http.Dispose();
+                _http = _httpFactory();
+            }
+            ServerUrl = normalized;
+            _http.BaseAddress = new Uri(ServerUrl + "/");
+            ApplyAuth();
+        }
         _store?.Set(StoreKeyServerUrl, ServerUrl);
     }
 
@@ -105,7 +130,7 @@ public class JellyfinApiClient
             if (!string.IsNullOrEmpty(serverUrl))
             {
                 ServerUrl = serverUrl.TrimEnd('/');
-                _http.BaseAddress = new Uri(ServerUrl);
+                _http.BaseAddress = new Uri(ServerUrl + "/");
             }
 
             var token = _store.Get(StoreKeyAccessToken);
@@ -175,7 +200,7 @@ public class JellyfinApiClient
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<ServerInfo>("/System/Info/Public", _jsonOpts);
+            var result = await _http.GetFromJsonAsync<ServerInfo>("System/Info/Public", _jsonOpts);
             ServerInfo = result;
             if (_store != null && result != null)
                 _store.Set(StoreKeyServerInfo, JsonSerializer.Serialize(result, _jsonOpts));
@@ -192,7 +217,7 @@ public class JellyfinApiClient
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<List<User>>("/Users/Public", _jsonOpts);
+            var result = await _http.GetFromJsonAsync<List<User>>("Users/Public", _jsonOpts);
             return result ?? new();
         }
         catch { return new(); }
@@ -203,7 +228,7 @@ public class JellyfinApiClient
         var body = new { Username = username, Pw = password };
         try
         {
-            var response = await _http.PostAsJsonAsync("/Users/AuthenticateByName", body);
+            var response = await _http.PostAsJsonAsync("Users/AuthenticateByName", body);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<AuthenticationResult>(_jsonOpts);
@@ -242,7 +267,7 @@ public class JellyfinApiClient
     {
         try
         {
-            var response = await _http.PostAsync("/QuickConnect/Initiate", null);
+            var response = await _http.PostAsync("QuickConnect/Initiate", null);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<QuickConnectInitResponse>(_jsonOpts);
         }
@@ -255,7 +280,7 @@ public class JellyfinApiClient
         {
             // Current API takes the display code, not the secret.
             var result = await _http.GetFromJsonAsync<QuickConnectAuthorizeResponse>(
-                $"/QuickConnect/Authorize?code={Uri.EscapeDataString(code)}", _jsonOpts);
+                $"QuickConnect/Authorize?code={Uri.EscapeDataString(code)}", _jsonOpts);
             return result;
         }
         catch { return null; }
@@ -267,7 +292,7 @@ public class JellyfinApiClient
         {
             // Exchange the secret for an access token.
             var body = new { Secret = secret };
-            var response = await _http.PostAsJsonAsync("/Users/AuthenticateWithQuickConnect", body, _jsonOpts);
+            var response = await _http.PostAsJsonAsync("Users/AuthenticateWithQuickConnect", body, _jsonOpts);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<AuthenticationResult>(_jsonOpts);
             if (result != null)
@@ -292,7 +317,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return new();
         try
         {
-            var result = await _http.GetFromJsonAsync<ItemsResult>($"/UserViews?userId={CurrentUser.Id}", _jsonOpts);
+            var result = await _http.GetFromJsonAsync<ItemsResult>($"UserViews?userId={CurrentUser.Id}", _jsonOpts);
             if (result?.Items == null) return new();
 
             return result.Items.Select(i => new ViewItem
@@ -311,7 +336,7 @@ public class JellyfinApiClient
         int startIndex = 0, int limit = 40, string? filters = null, string? includeItemTypes = null, bool recursive = true)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Items?userId={CurrentUser.Id}&ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Recursive={recursive.ToString().ToLowerInvariant()}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
+        var url = $"Items?userId={CurrentUser.Id}&ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Recursive={recursive.ToString().ToLowerInvariant()}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
 
         if (!string.IsNullOrEmpty(sortBy))
             url += $"&SortBy={sortBy}";
@@ -333,7 +358,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetResumeItemsAsync(int limit = 12)
     {
         if (CurrentUser == null) return new();
-        var url = $"/UserItems/Resume?userId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
+        var url = $"UserItems/Resume?userId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
         try
         {
             var result = await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts);
@@ -345,7 +370,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetNextUpAsync(string? seriesId = null, int limit = 12)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Shows/NextUp?UserId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Shows/NextUp?UserId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         if (!string.IsNullOrEmpty(seriesId))
             url += $"&SeriesId={seriesId}";
         try
@@ -359,7 +384,7 @@ public class JellyfinApiClient
     public async Task<BaseItemDto?> GetItemAsync(string itemId)
     {
         if (CurrentUser == null) return null;
-        var url = $"/Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
+        var url = $"Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
         try
         {
             return await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts);
@@ -370,7 +395,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetSimilarItemsAsync(string itemId, int limit = 12)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Items/{itemId}/Similar?userId={CurrentUser.Id}&limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Items/{itemId}/Similar?userId={CurrentUser.Id}&limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -383,7 +408,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return new();
         try
         {
-            var url = $"/Items/{itemId}/LocalTrailers?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+            var url = $"Items/{itemId}/LocalTrailers?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
             var result = await _http.GetFromJsonAsync<List<BaseItemDto>>(url, _jsonOpts);
             return result ?? new();
         }
@@ -393,7 +418,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetCollectionsAsync(int limit = 50)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Users/{CurrentUser.Id}/Items?IncludeItemTypes=BoxSet&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
+        var url = $"Users/{CurrentUser.Id}/Items?IncludeItemTypes=BoxSet&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -404,7 +429,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetPlaylistsAsync(int limit = 50)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Users/{CurrentUser.Id}/Items?IncludeItemTypes=Playlist&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
+        var url = $"Users/{CurrentUser.Id}/Items?IncludeItemTypes=Playlist&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -415,7 +440,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetSeasonsAsync(string seriesId)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Shows/{seriesId}/Seasons?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
+        var url = $"Shows/{seriesId}/Seasons?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -426,7 +451,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetEpisodesAsync(string seriesId, string seasonId)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -441,7 +466,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> SearchAsync(string query, int limit = 20)
     {
         if (CurrentUser == null) return new();
-        var url = $"/Items?userId={CurrentUser.Id}&SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&Recursive=true&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Items?userId={CurrentUser.Id}&SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&Recursive=true&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -456,7 +481,7 @@ public class JellyfinApiClient
     public async Task<PlaybackInfoResponse?> GetPlaybackInfoAsync(string itemId, long maxBitrate = 120_000_000)
     {
         if (CurrentUser == null) return null;
-        var url = $"/Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
+        var url = $"Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
 
         // Include audio/subtitle preferences from settings
         if (!string.IsNullOrEmpty(Settings.PreferredAudioLanguage))
@@ -489,7 +514,7 @@ public class JellyfinApiClient
             if (audioStreamIndex != null) data["AudioStreamIndex"] = audioStreamIndex;
             if (subtitleStreamIndex != null) data["SubtitleStreamIndex"] = subtitleStreamIndex;
 
-            await _http.PostAsJsonAsync("/Sessions/Playing", data, _jsonOpts);
+            await _http.PostAsJsonAsync("Sessions/Playing", data, _jsonOpts);
         }
         catch { /* fire and forget */ }
     }
@@ -498,7 +523,7 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.PostAsJsonAsync("/Sessions/Playing/Progress", new Dictionary<string, object?>
+            await _http.PostAsJsonAsync("Sessions/Playing/Progress", new Dictionary<string, object?>
             {
                 ["ItemId"] = itemId,
                 ["PositionTicks"] = positionTicks,
@@ -513,7 +538,7 @@ public class JellyfinApiClient
     {
         try
         {
-            await _http.PostAsJsonAsync("/Sessions/Playing/Stopped", new Dictionary<string, object?>
+            await _http.PostAsJsonAsync("Sessions/Playing/Stopped", new Dictionary<string, object?>
             {
                 ["ItemId"] = itemId,
                 ["PositionTicks"] = positionTicks
@@ -527,7 +552,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return;
         try
         {
-            await _http.PostAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser.Id}", null);
+            await _http.PostAsync($"UserPlayedItems/{itemId}?userId={CurrentUser.Id}", null);
         }
         catch { }
     }
@@ -537,7 +562,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return;
         try
         {
-            await _http.DeleteAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser.Id}");
+            await _http.DeleteAsync($"UserPlayedItems/{itemId}?userId={CurrentUser.Id}");
         }
         catch { }
     }
@@ -548,9 +573,9 @@ public class JellyfinApiClient
         try
         {
             if (isCurrentlyFavorite)
-                await _http.DeleteAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser.Id}");
+                await _http.DeleteAsync($"UserFavoriteItems/{itemId}?userId={CurrentUser.Id}");
             else
-                await _http.PostAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser.Id}", null);
+                await _http.PostAsync($"UserFavoriteItems/{itemId}?userId={CurrentUser.Id}", null);
         }
         catch { }
     }
@@ -569,11 +594,11 @@ public class JellyfinApiClient
         {
             var url = source.TranscodingUrl;
             if (audioIndex.HasValue)
-                url += (url.Contains('?') ? "&" : "?") + $"AudioStreamIndex={audioIndex.Value}";
+                url = ReplaceQueryParameter(url, "AudioStreamIndex", audioIndex.Value.ToString());
             if (subtitleIndex.HasValue && subtitleIndex.Value >= 0)
-                url += $"&SubtitleStreamIndex={subtitleIndex.Value}";
+                url = ReplaceQueryParameter(url, "SubtitleStreamIndex", subtitleIndex.Value.ToString());
             else if (subtitleIndex.HasValue && subtitleIndex.Value < 0)
-                url += $"&SubtitleStreamIndex=-1";
+                url = ReplaceQueryParameter(url, "SubtitleStreamIndex", "-1");
 
             if (!string.IsNullOrEmpty(tokenParam) && !url.Contains("api_key="))
                 url += (url.Contains('?') ? "&" : "?") + tokenParam;
@@ -584,11 +609,11 @@ public class JellyfinApiClient
         // When changing tracks, static=true must NOT be used because static streams ignore track selection
         bool isStatic = !audioIndex.HasValue && (!subtitleIndex.HasValue || subtitleIndex.Value < 0) && source.SupportsDirectPlay;
 
-        var streamUrl = $"/Videos/{itemId}/stream?MediaSourceId={source.Id}";
+        var streamUrl = $"Videos/{itemId}/stream?MediaSourceId={source.Id}";
         if (isStatic) streamUrl += "&static=true";
-        if (audioIndex.HasValue) streamUrl += $"&AudioStreamIndex={audioIndex.Value}";
-        if (subtitleIndex.HasValue && subtitleIndex.Value >= 0) streamUrl += $"&SubtitleStreamIndex={subtitleIndex.Value}";
-        else if (subtitleIndex.HasValue && subtitleIndex.Value < 0) streamUrl += "&SubtitleStreamIndex=-1";
+        if (audioIndex.HasValue) streamUrl = ReplaceQueryParameter(streamUrl, "AudioStreamIndex", audioIndex.Value.ToString());
+        if (subtitleIndex.HasValue && subtitleIndex.Value >= 0) streamUrl = ReplaceQueryParameter(streamUrl, "SubtitleStreamIndex", subtitleIndex.Value.ToString());
+        else if (subtitleIndex.HasValue && subtitleIndex.Value < 0) streamUrl = ReplaceQueryParameter(streamUrl, "SubtitleStreamIndex", "-1");
 
         if (!string.IsNullOrEmpty(tokenParam))
             streamUrl += $"&{tokenParam}";
@@ -603,7 +628,7 @@ public class JellyfinApiClient
         // 1. Try native Jellyfin MediaSegments API (10.10+)
         try
         {
-            var segments = await _http.GetFromJsonAsync<List<MediaSegmentDto>>($"/MediaSegments?itemId={itemId}", _jsonOpts);
+            var segments = await _http.GetFromJsonAsync<List<MediaSegmentDto>>($"MediaSegments?itemId={itemId}", _jsonOpts);
             if (segments != null && segments.Count > 0)
             {
                 var intro = segments.FirstOrDefault(s => string.Equals(s.Type, "Intro", StringComparison.OrdinalIgnoreCase));
@@ -627,7 +652,7 @@ public class JellyfinApiClient
         // 2. Try classic Intro Skipper plugin endpoints
         try
         {
-            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"/Episode/{itemId}/IntroTimestamps", _jsonOpts);
+            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"Episode/{itemId}/IntroTimestamps", _jsonOpts);
             if (res != null && (res.Valid || res.IntroEnd > 0 || res.CreditsEnd > 0))
             {
                 res.Valid = true;
@@ -638,7 +663,7 @@ public class JellyfinApiClient
 
         try
         {
-            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"/Items/{itemId}/IntroTimestamps", _jsonOpts);
+            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"Items/{itemId}/IntroTimestamps", _jsonOpts);
             if (res != null && (res.Valid || res.IntroEnd > 0 || res.CreditsEnd > 0))
             {
                 res.Valid = true;
@@ -655,7 +680,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return null;
         try
         {
-            var manifest = await _http.GetFromJsonAsync<TrickplayInfoDto>($"/Videos/{itemId}/Trickplay/{width}/GetManifest", _jsonOpts);
+            var manifest = await _http.GetFromJsonAsync<TrickplayInfoDto>($"Videos/{itemId}/Trickplay/{width}/GetManifest", _jsonOpts);
             if (manifest != null && manifest.ThumbnailCount > 0)
                 return manifest;
         }
@@ -695,7 +720,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return new();
         try
         {
-            var url = $"/Items/{itemId}/RemoteSearch/Subtitles/{language}";
+            var url = $"Items/{itemId}/RemoteSearch/Subtitles/{language}";
             var results = await _http.GetFromJsonAsync<List<RemoteSubtitleInfo>>(url, _jsonOpts);
             return results ?? new();
         }
@@ -707,7 +732,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return false;
         try
         {
-            var url = $"/Items/{itemId}/RemoteSearch/Subtitles/{subtitleId}";
+            var url = $"Items/{itemId}/RemoteSearch/Subtitles/{subtitleId}";
             var response = await _http.PostAsync(url, null);
             return response.IsSuccessStatusCode;
         }
@@ -742,7 +767,7 @@ public class JellyfinApiClient
                 SupportsMediaControl = true,
                 SupportsPersistentIdentifier = true
             };
-            await _http.PostAsJsonAsync("/Sessions/Capabilities/Full", capabilities, _jsonOpts);
+            await _http.PostAsJsonAsync("Sessions/Capabilities/Full", capabilities, _jsonOpts);
         }
         catch { /* best effort */ }
     }
@@ -783,7 +808,8 @@ public class JellyfinApiClient
 
                 var baseUri = new Uri(ServerUrl);
                 var wsScheme = baseUri.Scheme == "https" ? "wss" : "ws";
-                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}/socket?api_key={AccessToken}&deviceId=BoxJellyfish-Xbox");
+                var path = baseUri.AbsolutePath.TrimEnd('/');
+                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}{path}/socket?api_key={Uri.EscapeDataString(AccessToken)}&deviceId=BoxJellyfish-Xbox");
 
                 _webSocket = new ClientWebSocket();
                 await _webSocket.ConnectAsync(wsUri, ct);
@@ -855,7 +881,7 @@ public class JellyfinApiClient
 
     public string GetImageUrl(string itemId, string imageType = "Primary", int? maxWidth = null, int? maxHeight = null)
     {
-        var url = $"/Items/{itemId}/Images/{imageType}";
+        var url = $"Items/{itemId}/Images/{imageType}";
         var @params = new List<string>();
         if (maxWidth.HasValue) @params.Add($"maxWidth={maxWidth.Value}");
         if (maxHeight.HasValue) @params.Add($"maxHeight={maxHeight.Value}");
@@ -865,14 +891,14 @@ public class JellyfinApiClient
 
     public string GetBackdropUrl(string itemId, int index = 0, int? maxWidth = null)
     {
-        var url = $"/Items/{itemId}/Images/Backdrop/{index}";
+        var url = $"Items/{itemId}/Images/Backdrop/{index}";
         if (maxWidth.HasValue) url += $"?maxWidth={maxWidth.Value}";
         return url;
     }
 
     public string GetPersonImageUrl(string personId, int? maxWidth = null)
     {
-        var url = $"/Items/{personId}/Images/Primary";
+        var url = $"Items/{personId}/Images/Primary";
         if (maxWidth.HasValue) url += $"?maxWidth={maxWidth.Value}";
         return url;
     }
