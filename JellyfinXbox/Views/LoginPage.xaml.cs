@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
+using Windows.UI.Xaml.Navigation;
 using JellyfinClient.Models;
 using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
