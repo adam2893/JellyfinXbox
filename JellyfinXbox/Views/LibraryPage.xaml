@@ -39,6 +39,16 @@
                              FontSize="14" Padding="16 8" CornerRadius="8"
                              Background="{StaticResource SurfaceTertiaryBrush}"
                              Foreground="{StaticResource TextPrimaryBrush}" />
+                <RadioButton Content="Collections" GroupName="Filter"
+                             Click="FilterCollections_Click"
+                             FontSize="14" Padding="16 8" CornerRadius="8"
+                             Background="{StaticResource SurfaceTertiaryBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}" />
+                <RadioButton Content="Playlists" GroupName="Filter"
+                             Click="FilterPlaylists_Click"
+                             FontSize="14" Padding="16 8" CornerRadius="8"
+                             Background="{StaticResource SurfaceTertiaryBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}" />
             </StackPanel>
         </StackPanel>
 
@@ -62,7 +72,8 @@
                             <Border Width="160" Height="240"
                                     CornerRadius="12"
                                     Background="{StaticResource SurfaceTertiaryBrush}">
-                                <Image Stretch="UniformToFill" />
+                                <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
+                                       Stretch="UniformToFill" />
                             </Border>
                             <TextBlock Text="{Binding Name}"
                                        FontSize="13" FontWeight="Medium"

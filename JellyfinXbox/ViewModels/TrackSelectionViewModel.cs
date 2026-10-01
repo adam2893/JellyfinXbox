@@ -28,6 +28,8 @@ public partial class TrackSelectionViewModel : ObservableObject
 
     private MediaSourceInfo? _currentSource;
 
+    private bool _isLoadingTracks;
+
     public TrackSelectionViewModel(JellyfinApiClient api)
     {
         _api = api;
@@ -36,47 +38,58 @@ public partial class TrackSelectionViewModel : ObservableObject
 
     public void LoadTracks(MediaSourceInfo source)
     {
-        _currentSource = source;
-
-        AudioTracks.Clear();
-        SubtitleTracks.Clear();
-
-        var audioStreams = JellyfinApiClient.GetAudioStreams(source);
-        foreach (var a in audioStreams) AudioTracks.Add(a);
-
-        var subStreams = JellyfinApiClient.GetSubtitleStreams(source);
-        // Add "Off" option
-        SubtitleTracks.Add(new MediaStream
+        _isLoadingTracks = true;
+        try
         {
-            Index = -1,
-            Type = "Subtitle",
-            DisplayTitle = "Off",
-            Language = "off",
-            Codec = "off",
-            IsDefault = false
-        });
-        foreach (var s in subStreams) SubtitleTracks.Add(s);
+            _currentSource = source;
 
-        // Pre-select defaults
-        SelectedAudioTrack = AudioTracks.FirstOrDefault(a => a.IsDefault) ?? AudioTracks.FirstOrDefault();
-        var defaultSub = SubtitleTracks.FirstOrDefault(s => s.Index != -1 && s.IsDefault);
-        SelectedSubtitleTrack = defaultSub ?? SubtitleTracks.FirstOrDefault();
-        SubtitlesEnabled = defaultSub != null && SelectedSubtitleTrack?.Index != -1;
+            AudioTracks.Clear();
+            SubtitleTracks.Clear();
+
+            var audioStreams = JellyfinApiClient.GetAudioStreams(source);
+            foreach (var a in audioStreams) AudioTracks.Add(a);
+
+            var subStreams = JellyfinApiClient.GetSubtitleStreams(source);
+            // Add "Off" option
+            SubtitleTracks.Add(new MediaStream
+            {
+                Index = -1,
+                Type = "Subtitle",
+                DisplayTitle = "Off",
+                Language = "off",
+                Codec = "off",
+                IsDefault = false
+            });
+            foreach (var s in subStreams) SubtitleTracks.Add(s);
+
+            // Pre-select defaults
+            SelectedAudioTrack = AudioTracks.FirstOrDefault(a => a.IsDefault) ?? AudioTracks.FirstOrDefault();
+            var defaultSub = SubtitleTracks.FirstOrDefault(s => s.Index != -1 && s.IsDefault);
+            SelectedSubtitleTrack = defaultSub ?? SubtitleTracks.FirstOrDefault();
+            SubtitlesEnabled = defaultSub != null && SelectedSubtitleTrack?.Index != -1;
+        }
+        finally
+        {
+            _isLoadingTracks = false;
+        }
     }
 
     partial void OnSelectedAudioTrackChanged(MediaStream? value)
     {
+        if (_isLoadingTracks) return;
         RaiseTracksChanged();
     }
 
     partial void OnSelectedSubtitleTrackChanged(MediaStream? value)
     {
+        if (_isLoadingTracks) return;
         SubtitlesEnabled = value != null && value.Index != -1;
         RaiseTracksChanged();
     }
 
     private void RaiseTracksChanged()
     {
+        if (_isLoadingTracks) return;
         var sub = SubtitlesEnabled ? SelectedSubtitleTrack : SubtitleTracks.FirstOrDefault(s => s.Index == -1);
         OnTracksChanged?.Invoke(SelectedAudioTrack, sub);
     }
@@ -92,6 +105,67 @@ public partial class TrackSelectionViewModel : ObservableObject
         else
         {
             SelectedSubtitleTrack = SubtitleTracks.FirstOrDefault(s => s.Index == -1);
+        }
+    }
+
+    [ObservableProperty] public partial bool IsSearchingSubtitles { get; set; }
+    [ObservableProperty] public partial string SubtitleSearchStatus { get; set; } = "";
+    public ObservableCollection<RemoteSubtitleInfo> RemoteSubtitles { get; } = new();
+
+    private string? _currentItemId;
+
+    public void SetItemId(string itemId) => _currentItemId = itemId;
+
+    [RelayCommand]
+    public async Task SearchRemoteSubtitlesAsync(string? language = null)
+    {
+        if (string.IsNullOrEmpty(_currentItemId)) return;
+        IsSearchingSubtitles = true;
+        SubtitleSearchStatus = "Searching OpenSubtitles...";
+        RemoteSubtitles.Clear();
+        try
+        {
+            var lang = !string.IsNullOrEmpty(language) ? language : (!string.IsNullOrEmpty(_api.Settings.PreferredSubtitleLanguage) ? _api.Settings.PreferredSubtitleLanguage : "eng");
+            var results = await _api.SearchRemoteSubtitlesAsync(_currentItemId, lang);
+            foreach (var r in results) RemoteSubtitles.Add(r);
+            SubtitleSearchStatus = RemoteSubtitles.Count > 0 ? $"Found {RemoteSubtitles.Count} subtitle(s)" : "No subtitles found";
+        }
+        catch
+        {
+            SubtitleSearchStatus = "Search failed";
+        }
+        finally
+        {
+            IsSearchingSubtitles = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task DownloadSubtitleAsync(RemoteSubtitleInfo sub)
+    {
+        if (sub == null || string.IsNullOrEmpty(_currentItemId)) return;
+        SubtitleSearchStatus = $"Downloading {sub.Name}...";
+        var success = await _api.DownloadRemoteSubtitlesAsync(_currentItemId, sub.Id);
+        if (success)
+        {
+            SubtitleSearchStatus = "Downloaded! Refreshing tracks...";
+            RemoteSubtitles.Remove(sub);
+            // Refresh playback info & tracks
+            var pb = await _api.GetPlaybackInfoAsync(_currentItemId);
+            if (pb?.MediaSources != null && pb.MediaSources.Count > 0)
+            {
+                var src = pb.MediaSources.FirstOrDefault(s => s.Id == _currentSource?.Id) ?? pb.MediaSources[0];
+                LoadTracks(src);
+                var newSub = SubtitleTracks.LastOrDefault(s => s.Index != -1);
+                if (newSub != null)
+                {
+                    SelectedSubtitleTrack = newSub;
+                }
+            }
+        }
+        else
+        {
+            SubtitleSearchStatus = "Download failed";
         }
     }
 

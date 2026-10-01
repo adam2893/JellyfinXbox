@@ -79,6 +79,7 @@ public partial class App : Application
         services.AddTransient<SearchViewModel>();
         services.AddTransient<ShellViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<LibraryViewModel>();
         services.AddTransient<QuickConnectViewModel>();
         services.AddTransient<DebugViewModel>();
 

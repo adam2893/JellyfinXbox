@@ -23,4 +23,10 @@ public sealed partial class SearchPage : Page
         if (e.ClickedItem is BaseItemDto item)
             ViewModel.NavigateToItemCommand.Execute(item);
     }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.Dispose();
+    }
 }

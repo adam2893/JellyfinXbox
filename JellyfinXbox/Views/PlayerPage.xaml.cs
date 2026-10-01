@@ -19,14 +19,49 @@ public sealed partial class PlayerPage : Page
     private readonly Action _viewPressedHandler;
     private readonly Action _aPressedHandler;
     private readonly Action _bPressedHandler;
+    private readonly Action _xPressedHandler;
+    private readonly Action _yPressedHandler;
 
     public PlayerPage()
     {
         ViewModel = App.Services.GetRequiredService<PlayerViewModel>();
         _gamepad = App.Services.GetRequiredService<GamepadService>();
         _viewPressedHandler = () => ToggleTrackPanel_Click(this, null!);
-        _aPressedHandler = () => PlayPause_Click(this, null!);
-        _bPressedHandler = () => Back_Click(this, null!);
+        _aPressedHandler = () =>
+        {
+            var focused = FocusManager.GetFocusedElement() as DependencyObject;
+            if (focused is Button || focused is Slider || focused is ListViewItem)
+                return;
+            PlayPause_Click(this, null!);
+        };
+        _bPressedHandler = () =>
+        {
+            if (ViewModel.TrackSelection.IsVisible)
+            {
+                ViewModel.TrackSelection.HideCommand.Execute(null);
+            }
+            else
+            {
+                Back_Click(this, null!);
+            }
+        };
+        _xPressedHandler = () =>
+        {
+            ViewModel.TrackSelection.ToggleSubtitlesCommand.Execute(null);
+            ShowTransport();
+        };
+        _yPressedHandler = () =>
+        {
+            if (ViewModel.ShowSkipPrompt)
+            {
+                ViewModel.SkipIntroCommand.Execute(null);
+            }
+            else
+            {
+                ViewModel.CyclePlaybackSpeedCommand.Execute(null);
+                ShowTransport();
+            }
+        };
         InitializeComponent();
 
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
@@ -37,39 +72,63 @@ public sealed partial class PlayerPage : Page
         };
     }
 
+    private void OnPlayerInitialized(Windows.Media.Playback.MediaPlayer player)
+    {
+        _ = DispatcherQueue.TryEnqueue(() =>
+        {
+            PlayerElement.SetMediaPlayer(player);
+        });
+    }
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
         // Controller shortcuts (D-pad focus + A activation are native):
         //   Right/Left trigger → seek; View → track panel; A → play/pause;
-        //   B → stop & back; Menu → keep transport visible.
+        //   B → stop & back; X → toggle subtitles; Y → skip intro / cycle speed; Menu → keep transport visible.
         _gamepad.Start();
         _gamepad.OnRightTrigger += OnRightTrigger;
         _gamepad.OnLeftTrigger += OnLeftTrigger;
         _gamepad.OnViewPressed += _viewPressedHandler;
         _gamepad.OnAPressed += _aPressedHandler;
         _gamepad.OnBPressed += _bPressedHandler;
+        _gamepad.OnXPressed += _xPressedHandler;
+        _gamepad.OnYPressed += _yPressedHandler;
         _gamepad.OnMenuPressed += ShowTransport;
+
+        ViewModel.PlayerInitialized += OnPlayerInitialized;
+        var player = ViewModel.Player;
+        if (player != null)
+            PlayerElement.SetMediaPlayer(player);
 
         if (e.Parameter is string itemId)
         {
-            var player = ViewModel.Player;
-            if (player != null)
-                MediaPlayerElement.SetMediaPlayer(player);
-
             await ViewModel.LoadAsync(itemId);
+        }
+        else if (e.Parameter is ValueTuple<string, long?> tuple)
+        {
+            var startPos = tuple.Item2.HasValue ? TimeSpan.FromTicks(tuple.Item2.Value) : (TimeSpan?)null;
+            await ViewModel.LoadAsync(tuple.Item1, startPos);
+        }
+        else if (e.Parameter is (string id, long? ticks))
+        {
+            var startPos = ticks.HasValue ? TimeSpan.FromTicks(ticks.Value) : (TimeSpan?)null;
+            await ViewModel.LoadAsync(id, startPos);
         }
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        ViewModel.PlayerInitialized -= OnPlayerInitialized;
         _gamepad.OnRightTrigger -= OnRightTrigger;
         _gamepad.OnLeftTrigger -= OnLeftTrigger;
         _gamepad.OnViewPressed -= _viewPressedHandler;
         _gamepad.OnAPressed -= _aPressedHandler;
         _gamepad.OnBPressed -= _bPressedHandler;
+        _gamepad.OnXPressed -= _xPressedHandler;
+        _gamepad.OnYPressed -= _yPressedHandler;
         _gamepad.OnMenuPressed -= ShowTransport;
         ViewModel.Dispose();
     }
@@ -165,10 +224,71 @@ public sealed partial class PlayerPage : Page
     private void SeekSlider_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
         ViewModel.EndSeek();
+        ViewModel.ShowTrickplayPreview = false;
     }
 
     private void SeekSlider_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
         ViewModel.EndSeek();
+        ViewModel.ShowTrickplayPreview = false;
+    }
+
+    // ═══ Player Settings & Drawer Handlers ═══
+
+    private void Speed_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string speedStr } && double.TryParse(speedStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var speed))
+        {
+            ViewModel.SetPlaybackSpeedCommand.Execute(speed);
+            ShowTransport();
+        }
+    }
+
+    private void AudioDelayMinus_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustAudioOffsetCommand.Execute(-100);
+        ShowTransport();
+    }
+
+    private void AudioDelayPlus_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustAudioOffsetCommand.Execute(100);
+        ShowTransport();
+    }
+
+    private void SubDelayMinus_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustSubtitleOffsetCommand.Execute(-100);
+        ShowTransport();
+    }
+
+    private void SubDelayPlus_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustSubtitleOffsetCommand.Execute(100);
+        ShowTransport();
+    }
+
+    private void SearchOnlineSubtitles_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ViewModel.TrackSelection.SearchRemoteSubtitlesAsync();
+        ShowTransport();
+    }
+
+    private void DownloadSubtitle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: RemoteSubtitleInfo sub })
+        {
+            _ = ViewModel.TrackSelection.DownloadSubtitleAsync(sub);
+            ShowTransport();
+        }
+    }
+
+    private void Chapter_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is ChapterInfo chapter)
+        {
+            ViewModel.SelectChapterCommand.Execute(chapter);
+            ShowTransport();
+        }
     }
 }

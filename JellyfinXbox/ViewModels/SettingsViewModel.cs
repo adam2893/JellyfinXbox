@@ -124,7 +124,7 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void Logout()
     {
-        _api.Logout();
+        _api.Logout(keepServerUrl: false);
         _nav.NavigateTo(typeof(LoginPage));
     }
 
@@ -133,7 +133,7 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void SwitchUser()
     {
-        _api.Logout();
+        _api.Logout(keepServerUrl: true);
         _nav.NavigateTo(typeof(LoginPage));
     }
 

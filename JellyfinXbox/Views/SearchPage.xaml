@@ -49,7 +49,8 @@
 
                         <Border Grid.Column="0" Width="80" Height="120"
                                 CornerRadius="8" Background="{StaticResource SurfaceHoverBrush}">
-                            <Image Stretch="UniformToFill" />
+                            <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
+                                   Stretch="UniformToFill" />
                         </Border>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">

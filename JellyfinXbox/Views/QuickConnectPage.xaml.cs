@@ -34,4 +34,10 @@ public sealed partial class QuickConnectPage : Page
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => ViewModel.GoBackCommand.Execute(null);
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.Dispose();
+    }
 }

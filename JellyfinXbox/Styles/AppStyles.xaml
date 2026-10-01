@@ -7,10 +7,14 @@
     <!--            CONVERTERS                   -->
     <!-- ═══════════════════════════════════════ -->
     <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
+    <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <converters:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter" />
     <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
     <converters:TimeSpanFormatConverter x:Key="TimeSpanConverter" />
     <converters:TicksToTimeSpanConverter x:Key="TicksToTimeSpanConverter" />
+    <converters:ItemToImageSourceConverter x:Key="ItemImageConverter" />
+    <converters:PersonToImageSourceConverter x:Key="PersonImageConverter" />
 
     <!-- ═══════════════════════════════════════ -->
     <!--         NAV RADIO BUTTON STYLE           -->

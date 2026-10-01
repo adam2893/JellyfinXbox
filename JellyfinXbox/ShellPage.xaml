@@ -15,7 +15,7 @@
         <!-- ═══════════════════════════════════════ -->
         <!--             SIDE NAV BAR                 -->
         <!-- ═══════════════════════════════════════ -->
-        <Border Grid.Column="0" Width="80"
+        <Border x:Name="SideNavRail" Grid.Column="0" Width="80"
                 Background="{StaticResource SurfaceSecondaryBrush}"
                 BorderBrush="{StaticResource SurfaceTertiaryBrush}"
                 BorderThickness="0 0 1 0"

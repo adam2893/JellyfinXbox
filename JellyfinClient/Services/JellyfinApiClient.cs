@@ -1,4 +1,6 @@
+using System.IO;
 using System.Net.Http.Json;
+using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using JellyfinClient.Models;
@@ -38,6 +40,7 @@ public class JellyfinApiClient
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
         RestoreSession();
+        ApplyAuth();
     }
 
     public void SetServerUrl(string url)
@@ -49,16 +52,27 @@ public class JellyfinApiClient
 
     private void ApplyAuth()
     {
+        const string client = "BoxJellyfish";
+        const string device = "Xbox Series";
+        const string deviceId = "BoxJellyfish-Xbox";
+        const string version = "1.0.0.0";
+
         if (!string.IsNullOrEmpty(AccessToken))
         {
             _http.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AccessToken);
-            _http.DefaultRequestHeaders.Add("X-Emby-Token", AccessToken);
+                new System.Net.Http.Headers.AuthenticationHeaderValue("MediaBrowser",
+                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{deviceId}\", Version=\"{version}\", Token=\"{AccessToken}\"");
+            _http.DefaultRequestHeaders.Remove("X-Emby-Token");
+            _http.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Token", AccessToken);
+            StartWebSocketListener();
         }
         else
         {
-            _http.DefaultRequestHeaders.Authorization = null;
+            _http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("MediaBrowser",
+                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{deviceId}\", Version=\"{version}\"");
             _http.DefaultRequestHeaders.Remove("X-Emby-Token");
+            StopWebSocketListener();
         }
     }
 
@@ -139,14 +153,18 @@ public class JellyfinApiClient
             _store.Set(StoreKeyServerInfo, JsonSerializer.Serialize(ServerInfo, _jsonOpts));
     }
 
-    private void ClearSession()
+    private void ClearSession(bool keepServerUrl = false)
     {
         if (_store == null) return;
-        _store.Set(StoreKeyServerUrl, null);
+        if (!keepServerUrl)
+            _store.Set(StoreKeyServerUrl, null);
         _store.Set(StoreKeyAccessToken, null);
         _store.Set(StoreKeyCurrentUser, null);
-        _store.Set(StoreKeySettings, null);
-        _store.Set(StoreKeyServerInfo, null);
+        if (!keepServerUrl)
+        {
+            _store.Set(StoreKeySettings, null);
+            _store.Set(StoreKeyServerInfo, null);
+        }
     }
 
     #endregion
@@ -202,12 +220,17 @@ public class JellyfinApiClient
         catch (HttpRequestException) { return null; }
     }
 
-    public void Logout()
+    public void Logout(bool keepServerUrl = true)
     {
         AccessToken = null;
         CurrentUser = null;
         ApplyAuth();
-        ClearSession();
+        ClearSession(keepServerUrl);
+        if (!keepServerUrl)
+        {
+            ServerUrl = null;
+            ServerInfo = null;
+        }
         OnAuthenticationChanged?.Invoke();
     }
 
@@ -266,9 +289,10 @@ public class JellyfinApiClient
 
     public async Task<List<ViewItem>> GetViewsAsync()
     {
+        if (CurrentUser == null) return new();
         try
         {
-            var result = await _http.GetFromJsonAsync<ItemsResult>($"/UserViews?userId={CurrentUser!.Id}", _jsonOpts);
+            var result = await _http.GetFromJsonAsync<ItemsResult>($"/UserViews?userId={CurrentUser.Id}", _jsonOpts);
             if (result?.Items == null) return new();
 
             return result.Items.Select(i => new ViewItem
@@ -276,6 +300,7 @@ public class JellyfinApiClient
                 Id = i.Id,
                 Name = i.Name,
                 Type = i.Type,
+                CollectionType = i.CollectionType,
                 ImageTags = i.ImageTags
             }).ToList();
         }
@@ -283,9 +308,10 @@ public class JellyfinApiClient
     }
 
     public async Task<ItemsResult> GetItemsAsync(string parentId, string? sortBy = null, string? sortOrder = null,
-        int startIndex = 0, int limit = 40, string? filters = null, string? includeItemTypes = null)
+        int startIndex = 0, int limit = 40, string? filters = null, string? includeItemTypes = null, bool recursive = true)
     {
-        var url = $"/Items?userId={CurrentUser!.Id}&ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
+        if (CurrentUser == null) return new();
+        var url = $"/Items?userId={CurrentUser.Id}&ParentId={parentId}&StartIndex={startIndex}&Limit={limit}&Recursive={recursive.ToString().ToLowerInvariant()}&Fields=PrimaryImageAspectRatio,BasicSyncInfo,MediaStreams,MediaSources,Blurhashes,ImageBlurHashes";
 
         if (!string.IsNullOrEmpty(sortBy))
             url += $"&SortBy={sortBy}";
@@ -306,7 +332,8 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetResumeItemsAsync(int limit = 12)
     {
-        var url = $"/UserItems/Resume?userId={CurrentUser!.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
+        if (CurrentUser == null) return new();
+        var url = $"/UserItems/Resume?userId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video";
         try
         {
             var result = await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts);
@@ -317,7 +344,8 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetNextUpAsync(string? seriesId = null, int limit = 12)
     {
-        var url = $"/Shows/NextUp?UserId={CurrentUser!.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        if (CurrentUser == null) return new();
+        var url = $"/Shows/NextUp?UserId={CurrentUser.Id}&Limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         if (!string.IsNullOrEmpty(seriesId))
             url += $"&SeriesId={seriesId}";
         try
@@ -330,7 +358,8 @@ public class JellyfinApiClient
 
     public async Task<BaseItemDto?> GetItemAsync(string itemId)
     {
-        var url = $"/Items/{itemId}?userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres";
+        if (CurrentUser == null) return null;
+        var url = $"/Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
         try
         {
             return await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts);
@@ -338,9 +367,55 @@ public class JellyfinApiClient
         catch { return null; }
     }
 
+    public async Task<ItemsResult> GetSimilarItemsAsync(string itemId, int limit = 12)
+    {
+        if (CurrentUser == null) return new();
+        var url = $"/Items/{itemId}/Similar?userId={CurrentUser.Id}&limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        try
+        {
+            return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public async Task<List<BaseItemDto>> GetLocalTrailersAsync(string itemId)
+    {
+        if (CurrentUser == null) return new();
+        try
+        {
+            var url = $"/Items/{itemId}/LocalTrailers?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+            var result = await _http.GetFromJsonAsync<List<BaseItemDto>>(url, _jsonOpts);
+            return result ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public async Task<ItemsResult> GetCollectionsAsync(int limit = 50)
+    {
+        if (CurrentUser == null) return new();
+        var url = $"/Users/{CurrentUser.Id}/Items?IncludeItemTypes=BoxSet&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
+        try
+        {
+            return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public async Task<ItemsResult> GetPlaylistsAsync(int limit = 50)
+    {
+        if (CurrentUser == null) return new();
+        var url = $"/Users/{CurrentUser.Id}/Items?IncludeItemTypes=Playlist&Recursive=true&Limit={limit}&Fields=PrimaryImageAspectRatio,ItemCounts,ImageBlurHashes";
+        try
+        {
+            return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
+        }
+        catch { return new(); }
+    }
+
     public async Task<ItemsResult> GetSeasonsAsync(string seriesId)
     {
-        var url = $"/Shows/{seriesId}/Seasons?userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
+        if (CurrentUser == null) return new();
+        var url = $"/Shows/{seriesId}/Seasons?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -350,7 +425,8 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> GetEpisodesAsync(string seriesId, string seasonId)
     {
-        var url = $"/Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser!.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        if (CurrentUser == null) return new();
+        var url = $"/Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -364,7 +440,8 @@ public class JellyfinApiClient
 
     public async Task<ItemsResult> SearchAsync(string query, int limit = 20)
     {
-        var url = $"/Items?userId={CurrentUser!.Id}&SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        if (CurrentUser == null) return new();
+        var url = $"/Items?userId={CurrentUser.Id}&SearchTerm={Uri.EscapeDataString(query)}&Limit={limit}&Recursive=true&IncludeItemTypes=Movie,Series,Episode&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -378,7 +455,8 @@ public class JellyfinApiClient
 
     public async Task<PlaybackInfoResponse?> GetPlaybackInfoAsync(string itemId, long maxBitrate = 120_000_000)
     {
-        var url = $"/Items/{itemId}/PlaybackInfo?UserId={CurrentUser!.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
+        if (CurrentUser == null) return null;
+        var url = $"/Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
 
         // Include audio/subtitle preferences from settings
         if (!string.IsNullOrEmpty(Settings.PreferredAudioLanguage))
@@ -388,12 +466,10 @@ public class JellyfinApiClient
         else if (Settings.SubtitleMode == "Off")
             url += $"&SubtitleStreamIndex=-2"; // Disable subtitles
 
-        // The PlaybackInfo body must carry the DeviceProfile as an object
-        // (PlaybackInfoDto.DeviceProfile), not as a string — otherwise the
-        // server ignores it and direct-play decisions are made blind.
         try
         {
-            var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson());
+            var profileJson = DeviceProfileBuilder.GetXboxProfileJson(maxBitrate);
+            var profile = System.Text.Json.Nodes.JsonNode.Parse(profileJson);
             var response = await _http.PostAsJsonAsync(url, profile, _jsonOpts);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<PlaybackInfoResponse>(_jsonOpts);
@@ -448,51 +524,329 @@ public class JellyfinApiClient
 
     public async Task MarkPlayedAsync(string itemId)
     {
+        if (CurrentUser == null) return;
         try
         {
-            await _http.DeleteAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser!.Id}");
+            await _http.PostAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser.Id}", null);
         }
         catch { }
     }
 
-    public async Task ToggleFavoriteAsync(string itemId)
+    public async Task MarkUnplayedAsync(string itemId)
     {
+        if (CurrentUser == null) return;
         try
         {
-            await _http.PostAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser!.Id}", null);
+            await _http.DeleteAsync($"/UserPlayedItems/{itemId}?userId={CurrentUser.Id}");
+        }
+        catch { }
+    }
+
+    public async Task ToggleFavoriteAsync(string itemId, bool isCurrentlyFavorite = false)
+    {
+        if (CurrentUser == null) return;
+        try
+        {
+            if (isCurrentlyFavorite)
+                await _http.DeleteAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser.Id}");
+            else
+                await _http.PostAsync($"/UserFavoriteItems/{itemId}?userId={CurrentUser.Id}", null);
         }
         catch { }
     }
 
     /// <summary>
-    /// Build a transcoding URL with specific audio/subtitle track selection.
+    /// Build a playback/transcoding URL with specific audio/subtitle track selection.
     /// </summary>
     public string BuildTranscodeUrlWithTracks(string itemId, MediaSourceInfo source,
         int? audioIndex = null, int? subtitleIndex = null)
     {
         var baseUrl = ServerUrl;
-        // Note: Jellyfin's auth middleware reads the query token as
-        // "api_key" (lowercase), not "ApiKey".
-        var url = $"/Videos/{itemId}/stream?static=true&MediaSourceId={source.Id}&api_key={AccessToken}";
+        string tokenParam = !string.IsNullOrEmpty(AccessToken) ? $"api_key={AccessToken}" : "";
 
-        // If we need to switch tracks on a transcode, we need a full transcode URL
-        if (!source.SupportsDirectPlay && !string.IsNullOrEmpty(source.TranscodingUrl))
+        // If the source already provides a TranscodingUrl from PlaybackInfo, use it
+        if (!string.IsNullOrEmpty(source.TranscodingUrl))
         {
-            url = source.TranscodingUrl;
+            var url = source.TranscodingUrl;
             if (audioIndex.HasValue)
-                url += $"&AudioStreamIndex={audioIndex.Value}";
-            if (subtitleIndex.HasValue)
+                url += (url.Contains('?') ? "&" : "?") + $"AudioStreamIndex={audioIndex.Value}";
+            if (subtitleIndex.HasValue && subtitleIndex.Value >= 0)
                 url += $"&SubtitleStreamIndex={subtitleIndex.Value}";
-            return $"{baseUrl}{url}&api_key={AccessToken}";
+            else if (subtitleIndex.HasValue && subtitleIndex.Value < 0)
+                url += $"&SubtitleStreamIndex=-1";
+
+            if (!string.IsNullOrEmpty(tokenParam) && !url.Contains("api_key="))
+                url += (url.Contains('?') ? "&" : "?") + tokenParam;
+
+            return $"{baseUrl}{url}";
         }
 
-        // For direct play / direct stream, track changes may need transcoding
-        if (audioIndex.HasValue)
-            url += $"&AudioStreamIndex={audioIndex.Value}";
-        if (subtitleIndex.HasValue)
-            url += $"&SubtitleStreamIndex={subtitleIndex.Value}";
+        // When changing tracks, static=true must NOT be used because static streams ignore track selection
+        bool isStatic = !audioIndex.HasValue && (!subtitleIndex.HasValue || subtitleIndex.Value < 0) && source.SupportsDirectPlay;
 
-        return $"{baseUrl}{url}";
+        var streamUrl = $"/Videos/{itemId}/stream?MediaSourceId={source.Id}";
+        if (isStatic) streamUrl += "&static=true";
+        if (audioIndex.HasValue) streamUrl += $"&AudioStreamIndex={audioIndex.Value}";
+        if (subtitleIndex.HasValue && subtitleIndex.Value >= 0) streamUrl += $"&SubtitleStreamIndex={subtitleIndex.Value}";
+        else if (subtitleIndex.HasValue && subtitleIndex.Value < 0) streamUrl += "&SubtitleStreamIndex=-1";
+
+        if (!string.IsNullOrEmpty(tokenParam))
+            streamUrl += $"&{tokenParam}";
+
+        return $"{baseUrl}{streamUrl}";
+    }
+
+    public async Task<IntroTimestampsResult> GetIntroTimestampsAsync(string itemId)
+    {
+        if (CurrentUser == null) return new();
+
+        // 1. Try native Jellyfin MediaSegments API (10.10+)
+        try
+        {
+            var segments = await _http.GetFromJsonAsync<List<MediaSegmentDto>>($"/MediaSegments?itemId={itemId}", _jsonOpts);
+            if (segments != null && segments.Count > 0)
+            {
+                var intro = segments.FirstOrDefault(s => string.Equals(s.Type, "Intro", StringComparison.OrdinalIgnoreCase));
+                var credits = segments.FirstOrDefault(s => string.Equals(s.Type, "Credits", StringComparison.OrdinalIgnoreCase) || string.Equals(s.Type, "Outro", StringComparison.OrdinalIgnoreCase));
+
+                if (intro != null || credits != null)
+                {
+                    return new IntroTimestampsResult
+                    {
+                        Valid = true,
+                        IntroStart = intro?.StartSeconds ?? 0,
+                        IntroEnd = intro?.EndSeconds ?? 0,
+                        CreditsStart = credits?.StartSeconds ?? 0,
+                        CreditsEnd = credits?.EndSeconds ?? 0
+                    };
+                }
+            }
+        }
+        catch { /* Fallback to plugin endpoint */ }
+
+        // 2. Try classic Intro Skipper plugin endpoints
+        try
+        {
+            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"/Episode/{itemId}/IntroTimestamps", _jsonOpts);
+            if (res != null && (res.Valid || res.IntroEnd > 0 || res.CreditsEnd > 0))
+            {
+                res.Valid = true;
+                return res;
+            }
+        }
+        catch { /* Try /Items/{itemId}/IntroTimestamps */ }
+
+        try
+        {
+            var res = await _http.GetFromJsonAsync<IntroTimestampsResult>($"/Items/{itemId}/IntroTimestamps", _jsonOpts);
+            if (res != null && (res.Valid || res.IntroEnd > 0 || res.CreditsEnd > 0))
+            {
+                res.Valid = true;
+                return res;
+            }
+        }
+        catch { /* No intro timestamps available */ }
+
+        return new IntroTimestampsResult { Valid = false };
+    }
+
+    public async Task<TrickplayInfoDto?> GetTrickplayManifestAsync(string itemId, int width = 320)
+    {
+        if (CurrentUser == null) return null;
+        try
+        {
+            var manifest = await _http.GetFromJsonAsync<TrickplayInfoDto>($"/Videos/{itemId}/Trickplay/{width}/GetManifest", _jsonOpts);
+            if (manifest != null && manifest.ThumbnailCount > 0)
+                return manifest;
+        }
+        catch { /* Fall back */ }
+
+        try
+        {
+            var item = await GetItemAsync(itemId);
+            if (item?.Trickplay != null)
+            {
+                foreach (var mediaSourceKvp in item.Trickplay.Values)
+                {
+                    if (mediaSourceKvp.TryGetValue(width.ToString(), out var info))
+                        return info;
+                    if (mediaSourceKvp.Values.FirstOrDefault() is { } fallback)
+                        return fallback;
+                }
+            }
+        }
+        catch { /* best effort */ }
+
+        return null;
+    }
+
+    public string GetTrickplayTileUrl(string itemId, int width, int tileIndex)
+    {
+        var tokenParam = !string.IsNullOrEmpty(AccessToken) ? $"&api_key={AccessToken}" : "";
+        return $"{ServerUrl}/Videos/{itemId}/Trickplay/{width}/{tileIndex}.jpg?{tokenParam}".TrimEnd('&', '?');
+    }
+
+    #endregion
+
+    #region Subtitles
+
+    public async Task<List<RemoteSubtitleInfo>> SearchRemoteSubtitlesAsync(string itemId, string language = "eng")
+    {
+        if (CurrentUser == null) return new();
+        try
+        {
+            var url = $"/Items/{itemId}/RemoteSearch/Subtitles/{language}";
+            var results = await _http.GetFromJsonAsync<List<RemoteSubtitleInfo>>(url, _jsonOpts);
+            return results ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public async Task<bool> DownloadRemoteSubtitlesAsync(string itemId, string subtitleId)
+    {
+        if (CurrentUser == null) return false;
+        try
+        {
+            var url = $"/Items/{itemId}/RemoteSearch/Subtitles/{subtitleId}";
+            var response = await _http.PostAsync(url, null);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    #endregion
+
+    #region Remote Control & WebSockets
+
+    private ClientWebSocket? _webSocket;
+    private CancellationTokenSource? _wsCts;
+
+    public event Action<PlayCommandData>? OnPlayCommand;
+    public event Action<PlaystateCommandData>? OnPlaystateCommand;
+    public event Action<GeneralCommandData>? OnGeneralCommand;
+
+    public async Task ReportCapabilitiesAsync()
+    {
+        if (CurrentUser == null || string.IsNullOrEmpty(AccessToken)) return;
+        try
+        {
+            var capabilities = new
+            {
+                PlayableMediaTypes = new[] { "Video", "Audio" },
+                SupportedCommands = new[]
+                {
+                    "Play", "Playstate", "PlayNext", "PlayMediaSource",
+                    "ToggleOsd", "SetVolume", "VolumeUp", "VolumeDown",
+                    "Mute", "Unmute", "ToggleMute", "SetAudioStreamIndex", "SetSubtitleStreamIndex"
+                },
+                SupportsMediaControl = true,
+                SupportsPersistentIdentifier = true
+            };
+            await _http.PostAsJsonAsync("/Sessions/Capabilities/Full", capabilities, _jsonOpts);
+        }
+        catch { /* best effort */ }
+    }
+
+    public void StartWebSocketListener()
+    {
+        StopWebSocketListener();
+        if (string.IsNullOrEmpty(ServerUrl) || string.IsNullOrEmpty(AccessToken)) return;
+
+        _wsCts = new CancellationTokenSource();
+        _ = RunWebSocketLoopAsync(_wsCts.Token);
+    }
+
+    public void StopWebSocketListener()
+    {
+        try
+        {
+            _wsCts?.Cancel();
+            _wsCts?.Dispose();
+            _wsCts = null;
+            _webSocket?.Dispose();
+            _webSocket = null;
+        }
+        catch { /* best effort */ }
+    }
+
+    private async Task RunWebSocketLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ServerUrl) || string.IsNullOrEmpty(AccessToken))
+                {
+                    await Task.Delay(3000, ct);
+                    continue;
+                }
+
+                var baseUri = new Uri(ServerUrl);
+                var wsScheme = baseUri.Scheme == "https" ? "wss" : "ws";
+                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}/socket?api_key={AccessToken}&deviceId=BoxJellyfish-Xbox");
+
+                _webSocket = new ClientWebSocket();
+                await _webSocket.ConnectAsync(wsUri, ct);
+
+                // Report capabilities once connected so server recognizes client for Play To
+                _ = ReportCapabilitiesAsync();
+
+                var buffer = new byte[8192];
+                var ms = new MemoryStream();
+
+                while (_webSocket.State == WebSocketState.Open && !ct.IsCancellationRequested)
+                {
+                    ms.SetLength(0);
+                    WebSocketReceiveResult result;
+                    do
+                    {
+                        var segment = new ArraySegment<byte>(buffer);
+                        result = await _webSocket.ReceiveAsync(segment, ct);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                            break;
+                        }
+                        ms.Write(buffer, 0, result.Count);
+                    } while (!result.EndOfMessage);
+
+                    if (result.MessageType == WebSocketMessageType.Text && ms.Length > 0)
+                    {
+                        ms.Seek(0, SeekOrigin.Begin);
+                        using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: ct);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("MessageType", out var msgTypeProp))
+                        {
+                            var msgType = msgTypeProp.GetString();
+                            if (msgType == "Play" && root.TryGetProperty("Data", out var playDataProp))
+                            {
+                                var playData = JsonSerializer.Deserialize<PlayCommandData>(playDataProp.GetRawText(), _jsonOpts);
+                                if (playData != null) OnPlayCommand?.Invoke(playData);
+                            }
+                            else if (msgType == "Playstate" && root.TryGetProperty("Data", out var playstateDataProp))
+                            {
+                                var playstateData = JsonSerializer.Deserialize<PlaystateCommandData>(playstateDataProp.GetRawText(), _jsonOpts);
+                                if (playstateData != null) OnPlaystateCommand?.Invoke(playstateData);
+                            }
+                            else if (msgType == "GeneralCommand" && root.TryGetProperty("Data", out var generalDataProp))
+                            {
+                                var generalData = JsonSerializer.Deserialize<GeneralCommandData>(generalDataProp.GetRawText(), _jsonOpts);
+                                if (generalData != null) OnGeneralCommand?.Invoke(generalData);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch
+            {
+                // Reconnect delay
+                try { await Task.Delay(5000, ct); } catch { break; }
+            }
+        }
     }
 
     #endregion
@@ -521,6 +875,38 @@ public class JellyfinApiClient
         var url = $"/Items/{personId}/Images/Primary";
         if (maxWidth.HasValue) url += $"?maxWidth={maxWidth.Value}";
         return url;
+    }
+
+    public string? GetItemImageUrl(BaseItemDto? item, string imageType = "Primary", int? maxWidth = null)
+    {
+        if (item == null || string.IsNullOrEmpty(ServerUrl)) return null;
+
+        string itemId = item.Id;
+
+        if (imageType == "Primary")
+        {
+            if (item.ImageTags == null || !item.ImageTags.ContainsKey("Primary"))
+            {
+                if (!string.IsNullOrEmpty(item.SeriesId))
+                    itemId = item.SeriesId;
+            }
+        }
+        else if (imageType == "Backdrop")
+        {
+            var backdropId = item.BackdropImageTags?.Count > 0 ? item.Id : item.ParentBackdropItemId;
+            if (!string.IsNullOrEmpty(backdropId))
+                return $"{ServerUrl}{GetBackdropUrl(backdropId, 0, maxWidth)}";
+            return null;
+        }
+
+        return $"{ServerUrl}{GetImageUrl(itemId, imageType, maxWidth)}";
+    }
+
+    public string? GetPersonProfileImageUrl(BaseItemPerson? person, int? maxWidth = null)
+    {
+        if (person == null || string.IsNullOrEmpty(ServerUrl) || string.IsNullOrEmpty(person.PrimaryImageTag))
+            return null;
+        return $"{ServerUrl}{GetPersonImageUrl(person.Id, maxWidth)}";
     }
 
     #endregion

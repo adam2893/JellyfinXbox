@@ -28,4 +28,16 @@ public sealed partial class HomePage : Page
         if (e.ClickedItem is BaseItemDto item)
             ViewModel.NavigateToItemCommand.Execute(item);
     }
+
+    private void LibraryItem_Click(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is BaseItemDto item)
+            ViewModel.NavigateToLibraryCommand.Execute(item);
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.Dispose();
+    }
 }

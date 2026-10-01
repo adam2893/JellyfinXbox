@@ -62,7 +62,26 @@ public class GamepadService : IDisposable
         var gamepads = Gamepad.Gamepads;
         if (gamepads.Count == 0) return;
 
-        var reading = gamepads[0].GetCurrentReading();
+        GamepadReading reading = default;
+        bool foundActive = false;
+
+        for (int i = 0; i < gamepads.Count; i++)
+        {
+            var r = gamepads[i].GetCurrentReading();
+            if (r.Buttons != GamepadButtons.None ||
+                r.RightTrigger > TriggerThreshold ||
+                r.LeftTrigger > TriggerThreshold ||
+                Math.Abs(r.LeftThumbstickX) > ThumbstickDeadzone ||
+                Math.Abs(r.LeftThumbstickY) > ThumbstickDeadzone)
+            {
+                reading = r;
+                foundActive = true;
+                break;
+            }
+        }
+
+        if (!foundActive)
+            reading = gamepads[0].GetCurrentReading();
 
         // Button pressed detection (rising edge)
         var buttons = reading.Buttons;

@@ -15,6 +15,8 @@ public partial class MediaDetailViewModel : ObservableObject
 
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial bool IsSeries { get; set; }
+    [ObservableProperty] public partial bool HasSimilarItems { get; set; }
+    [ObservableProperty] public partial bool HasTrailer { get; set; }
     [ObservableProperty] public partial BaseItemDto? Item { get; set; }
     [ObservableProperty] public partial string Title { get; set; }
     [ObservableProperty] public partial string Subtitle { get; set; }
@@ -26,10 +28,13 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty] public partial string? OfficialRating { get; set; }
     [ObservableProperty] public partial int SelectedSeasonIndex { get; set; }
 
+    private string? _trailerItemId;
+
     public ObservableCollection<BaseItemDto> Seasons { get; } = new();
     public ObservableCollection<BaseItemDto> Episodes { get; } = new();
     public ObservableCollection<BaseItemPerson> Cast { get; } = new();
     public ObservableCollection<string> Genres { get; } = new();
+    public ObservableCollection<BaseItemDto> SimilarItems { get; } = new();
 
     public MediaDetailViewModel(JellyfinApiClient api, NavigationService nav)
     {
@@ -93,6 +98,30 @@ public partial class MediaDetailViewModel : ObservableObject
                 Title = item.SeriesName;
         }
 
+        // Trailers
+        var localTrailers = await _api.GetLocalTrailersAsync(item.Id);
+        if (localTrailers.Count > 0)
+        {
+            _trailerItemId = localTrailers[0].Id;
+            HasTrailer = true;
+        }
+        else if (item.RemoteTrailers?.Count > 0)
+        {
+            _trailerItemId = null;
+            HasTrailer = true;
+        }
+        else
+        {
+            _trailerItemId = null;
+            HasTrailer = false;
+        }
+
+        // Similar items
+        SimilarItems.Clear();
+        var similar = await _api.GetSimilarItemsAsync(item.Id, 12);
+        foreach (var sim in similar.Items) SimilarItems.Add(sim);
+        HasSimilarItems = SimilarItems.Count > 0;
+
         IsLoading = false;
     }
 
@@ -103,12 +132,15 @@ public partial class MediaDetailViewModel : ObservableObject
         foreach (var s in result.Items) Seasons.Add(s);
 
         if (Seasons.Count > 0)
+        {
+            SelectedSeasonIndex = -1;
             SelectedSeasonIndex = 0;
+        }
     }
 
     partial void OnSelectedSeasonIndexChanged(int value)
     {
-        if (Seasons.Count > value && Item != null)
+        if (value >= 0 && Seasons.Count > value && Item != null)
             _ = LoadEpisodesAsync(Item.Id, Seasons[value].Id);
     }
 
@@ -126,9 +158,32 @@ public partial class MediaDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void PlayItem(BaseItemDto item)
+    private void PlayItem(BaseItemDto? item)
     {
+        if (item == null) return;
+        if (item.Type == "Series" && Episodes.Count > 0)
+        {
+            _nav.NavigateTo(typeof(PlayerPage), Episodes[0].Id);
+            return;
+        }
         _nav.NavigateTo(typeof(PlayerPage), item.Id);
+    }
+
+    [RelayCommand]
+    private void PlayTrailer()
+    {
+        if (!string.IsNullOrEmpty(_trailerItemId))
+        {
+            _nav.NavigateTo(typeof(PlayerPage), _trailerItemId);
+        }
+        else if (Item?.RemoteTrailers?.Count > 0)
+        {
+            var trailer = Item.RemoteTrailers[0];
+            if (!string.IsNullOrEmpty(trailer.Url))
+            {
+                _ = Windows.System.Launcher.LaunchUriAsync(new Uri(trailer.Url));
+            }
+        }
     }
 
     [RelayCommand]

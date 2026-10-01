@@ -44,4 +44,10 @@ public sealed partial class LoginPage : Page
         // Navigate to Quick Connect (shell will handle it)
         _nav.NavigateTo(typeof(QuickConnectPage));
     }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.Dispose();
+    }
 }

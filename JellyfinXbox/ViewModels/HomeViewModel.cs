@@ -8,16 +8,18 @@ using JellyfinXbox.Views;
 
 namespace JellyfinXbox.ViewModels;
 
-public partial class HomeViewModel : ObservableObject
+public partial class HomeViewModel : ObservableObject, IDisposable
 {
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
+    private readonly Action _authChangedHandler;
 
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial bool HasContinueWatching { get; set; }
     [ObservableProperty] public partial bool HasNextUp { get; set; }
     [ObservableProperty] public partial string DisplayName { get; set; }
 
+    public ObservableCollection<BaseItemDto> Libraries { get; } = new();
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
     public ObservableCollection<BaseItemDto> NextUp { get; } = new();
     public ObservableCollection<BaseItemDto> LatestMovies { get; } = new();
@@ -28,11 +30,12 @@ public partial class HomeViewModel : ObservableObject
         _api = api;
         _nav = nav;
 
-        _api.OnAuthenticationChanged += async () =>
+        _authChangedHandler = () =>
         {
             if (!_api.IsAuthenticated)
                 _nav.NavigateTo(typeof(LoginPage));
         };
+        _api.OnAuthenticationChanged += _authChangedHandler;
     }
 
     [RelayCommand]
@@ -62,8 +65,12 @@ public partial class HomeViewModel : ObservableObject
             foreach (var item in nextUpTask.Result.Items) NextUp.Add(item);
             HasNextUp = NextUp.Count > 0;
 
-            // Latest content from libraries
+            // Libraries
             var views = viewsTask.Result;
+            Libraries.Clear();
+            foreach (var view in views) Libraries.Add(view);
+
+            // Latest content from libraries
             LatestMovies.Clear();
             LatestShows.Clear();
 
@@ -99,5 +106,10 @@ public partial class HomeViewModel : ObservableObject
     private void NavigateToSearch()
     {
         _nav.NavigateTo(typeof(SearchPage));
+    }
+
+    public void Dispose()
+    {
+        _api.OnAuthenticationChanged -= _authChangedHandler;
     }
 }

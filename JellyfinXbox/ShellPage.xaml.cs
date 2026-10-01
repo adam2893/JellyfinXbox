@@ -35,6 +35,23 @@ public sealed partial class ShellPage : Page
 
         var api = App.Services.GetRequiredService<JellyfinApiClient>();
 
+        // Remote control casting ("Play To Xbox")
+        api.OnPlayCommand += data =>
+        {
+            if (data.ItemIds != null && data.ItemIds.Count > 0)
+            {
+                _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                {
+                    if (ContentFrame.CurrentSourcePageType != typeof(PlayerPage))
+                    {
+                        var firstId = data.ItemIds[0];
+                        long? startPos = data.StartPositionTicks;
+                        _nav.NavigateTo(typeof(PlayerPage), (firstId, startPos));
+                    }
+                });
+            }
+        };
+
         if (!api.IsAuthenticated)
         {
             _nav.NavigateTo(typeof(LoginPage));
@@ -46,43 +63,55 @@ public sealed partial class ShellPage : Page
         }
     }
 
-    private void OnMenuPressed() => NavButton_Click(NavSettings, null!);
-    private void OnViewPressed() => NavButton_Click(NavQuickConnect, null!);
+    private void OnMenuPressed()
+    {
+        if (ContentFrame.CurrentSourcePageType == typeof(PlayerPage) ||
+            ContentFrame.CurrentSourcePageType == typeof(LoginPage))
+            return;
+
+        if (ContentFrame.CurrentSourcePageType != typeof(SettingsPage))
+            NavButton_Click(NavSettings, null!);
+    }
+
+    private void OnViewPressed()
+    {
+        if (ContentFrame.CurrentSourcePageType == typeof(PlayerPage) ||
+            ContentFrame.CurrentSourcePageType == typeof(LoginPage))
+            return;
+
+        if (ContentFrame.CurrentSourcePageType != typeof(QuickConnectPage))
+            NavButton_Click(NavQuickConnect, null!);
+    }
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is RadioButton rb)
         {
             var tag = rb.Tag?.ToString();
-            switch (tag)
+            Type? targetType = tag switch
             {
-                case "home":
-                    _nav.NavigateTo(typeof(HomePage));
-                    break;
-                case "search":
-                    _nav.NavigateTo(typeof(SearchPage));
-                    break;
-                case "quickconnect":
-                    _nav.NavigateTo(typeof(QuickConnectPage));
-                    break;
-                case "settings":
-                    _nav.NavigateTo(typeof(SettingsPage));
-                    break;
+                "home" => typeof(HomePage),
+                "search" => typeof(SearchPage),
+                "quickconnect" => typeof(QuickConnectPage),
+                "settings" => typeof(SettingsPage),
+                _ => null
+            };
+
+            if (targetType != null && ContentFrame.CurrentSourcePageType != targetType)
+            {
+                _nav.NavigateTo(targetType);
             }
         }
     }
 
     private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
-        if (e.SourcePageType != typeof(HomePage) &&
-            e.SourcePageType != typeof(SearchPage) &&
-            e.SourcePageType != typeof(QuickConnectPage) &&
-            e.SourcePageType != typeof(SettingsPage))
-        {
-            NavHome.IsChecked = false;
-            NavSearch.IsChecked = false;
-            NavQuickConnect.IsChecked = false;
-            NavSettings.IsChecked = false;
-        }
+        bool hideRail = e.SourcePageType == typeof(PlayerPage) || e.SourcePageType == typeof(LoginPage);
+        SideNavRail.Visibility = hideRail ? Visibility.Collapsed : Visibility.Visible;
+
+        NavHome.IsChecked = e.SourcePageType == typeof(HomePage);
+        NavSearch.IsChecked = e.SourcePageType == typeof(SearchPage);
+        NavQuickConnect.IsChecked = e.SourcePageType == typeof(QuickConnectPage);
+        NavSettings.IsChecked = e.SourcePageType == typeof(SettingsPage);
     }
 }

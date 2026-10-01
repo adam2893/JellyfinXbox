@@ -32,6 +32,51 @@
             </Grid>
 
             <!-- ═══════════════════════════════════════ -->
+            <!--               MY MEDIA                  -->
+            <!-- ═══════════════════════════════════════ -->
+            <StackPanel Visibility="{x:Bind ViewModel.Libraries.Count, Mode=OneWay, Converter={StaticResource CountToVisibilityConverter}}"
+                        Spacing="16">
+                <TextBlock Text="My Media"
+                           FontSize="24" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" />
+
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                              HorizontalScrollMode="Enabled"
+                              VerticalScrollMode="Disabled">
+                    <GridView ItemsSource="{x:Bind ViewModel.Libraries, Mode=OneWay}"
+                              SelectionMode="None"
+                              IsItemClickEnabled="True"
+                              ItemClick="LibraryItem_Click">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="16" />
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Width="200" Height="90"
+                                      CornerRadius="12"
+                                      Background="{StaticResource SurfaceSecondaryBrush}"
+                                      BorderBrush="{StaticResource SurfaceTertiaryBrush}"
+                                      BorderThickness="1"
+                                      Padding="18 14">
+                                    <StackPanel VerticalAlignment="Center" Spacing="6">
+                                        <FontIcon Glyph="&#xE8B9;" FontSize="20"
+                                                  Foreground="{StaticResource PrimaryBrush}"
+                                                  HorizontalAlignment="Left" />
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+                </ScrollViewer>
+            </StackPanel>
+
+            <!-- ═══════════════════════════════════════ -->
             <!--          CONTINUE WATCHING               -->
             <!-- ═══════════════════════════════════════ -->
             <StackPanel Visibility="{x:Bind ViewModel.HasContinueWatching, Mode=OneWay}"
@@ -59,7 +104,8 @@
                                       Background="{StaticResource SurfaceTertiaryBrush}">
                                     <!-- Poster -->
                                     <Border CornerRadius="12">
-                                        <Image Stretch="UniformToFill" />
+                                        <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Backdrop}"
+                                               Stretch="UniformToFill" />
                                     </Border>
                                     <!-- Progress bar -->
                                     <StackPanel VerticalAlignment="Bottom"
@@ -109,7 +155,8 @@
                                       CornerRadius="12"
                                       Background="{StaticResource SurfaceTertiaryBrush}">
                                     <Border CornerRadius="12">
-                                        <Image Stretch="UniformToFill" />
+                                        <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Backdrop}"
+                                               Stretch="UniformToFill" />
                                     </Border>
                                     <StackPanel VerticalAlignment="Bottom"
                                                 Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
@@ -157,7 +204,8 @@
                                     <Border Width="160" Height="240"
                                             CornerRadius="12"
                                             Background="{StaticResource SurfaceTertiaryBrush}">
-                                        <Image Stretch="UniformToFill" />
+                                        <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
+                                               Stretch="UniformToFill" />
                                     </Border>
                                     <TextBlock Text="{Binding Name}"
                                                FontSize="13" FontWeight="Medium"
@@ -201,7 +249,8 @@
                                     <Border Width="160" Height="240"
                                             CornerRadius="12"
                                             Background="{StaticResource SurfaceTertiaryBrush}">
-                                        <Image Stretch="UniformToFill" />
+                                        <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
+                                               Stretch="UniformToFill" />
                                     </Border>
                                     <TextBlock Text="{Binding Name}"
                                                FontSize="13" FontWeight="Medium"

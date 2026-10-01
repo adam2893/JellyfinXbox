@@ -145,6 +145,18 @@ public class BaseItemDto
     [JsonPropertyName("CollectionType")]
     public string? CollectionType { get; set; }
 
+    [JsonPropertyName("Chapters")]
+    public List<ChapterInfo> Chapters { get; set; } = new();
+
+    [JsonPropertyName("LocalTrailerCount")]
+    public int? LocalTrailerCount { get; set; }
+
+    [JsonPropertyName("RemoteTrailers")]
+    public List<MediaUrl> RemoteTrailers { get; set; } = new();
+
+    [JsonPropertyName("Trickplay")]
+    public Dictionary<string, Dictionary<string, TrickplayInfoDto>>? Trickplay { get; set; }
+
     public string? PrimaryImageBlurHash
     {
         get
@@ -376,14 +388,15 @@ public class TranscodingProfile
 
 public class DeviceProfileBuilder
 {
-    public static string GetXboxProfileJson()
+    public static string GetXboxProfileJson(long maxBitrate = 120_000_000)
     {
-        return """
+        var bitrate = maxBitrate > 0 ? maxBitrate : 120_000_000;
+        return $$"""
         {
           "DeviceProfile": {
-            "Name": "Jellyfin Xbox",
-            "MaxStreamingBitrate": 120000000,
-            "MaxStaticBitrate": 120000000,
+            "Name": "BoxJellyfish Xbox",
+            "MaxStreamingBitrate": {{bitrate}},
+            "MaxStaticBitrate": {{bitrate}},
             "MusicStreamingTranscodingBitrate": 192000,
             "DirectPlayProfiles": [
               {
@@ -421,7 +434,7 @@ public class DeviceProfileBuilder
               { "Format": "ssa", "Method": "External" },
               { "Format": "sub", "Method": "Embed" },
               { "Format": "subrip", "Method": "Embed" },
-              { "Format": "vtt", "Method": "Embed" },
+              { "Format": "vtt", "Method": "External" },
               { "Format": "pgs", "Method": "Embed" },
               { "Format": "pgssub", "Method": "Embed" }
             ]
@@ -430,3 +443,172 @@ public class DeviceProfileBuilder
         """;
     }
 }
+
+public class ChapterInfo
+{
+    [JsonPropertyName("StartPositionTicks")]
+    public long StartPositionTicks { get; set; }
+
+    [JsonPropertyName("Name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("ImagePath")]
+    public string? ImagePath { get; set; }
+
+    [JsonIgnore]
+    public TimeSpan StartPosition => TimeSpan.FromTicks(StartPositionTicks);
+}
+
+public class MediaUrl
+{
+    [JsonPropertyName("Url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("Name")]
+    public string? Name { get; set; }
+}
+
+public class IntroTimestampsResult
+{
+    [JsonPropertyName("Valid")]
+    public bool Valid { get; set; }
+
+    [JsonPropertyName("IntroStart")]
+    public double IntroStart { get; set; }
+
+    [JsonPropertyName("IntroEnd")]
+    public double IntroEnd { get; set; }
+
+    [JsonPropertyName("CreditsStart")]
+    public double CreditsStart { get; set; }
+
+    [JsonPropertyName("CreditsEnd")]
+    public double CreditsEnd { get; set; }
+}
+
+public class MediaSegmentDto
+{
+    [JsonPropertyName("Id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("ItemId")]
+    public string ItemId { get; set; } = string.Empty;
+
+    [JsonPropertyName("Type")]
+    public string Type { get; set; } = string.Empty; // "Intro", "Credits", "Recap", etc.
+
+    [JsonPropertyName("StartTicks")]
+    public long StartTicks { get; set; }
+
+    [JsonPropertyName("EndTicks")]
+    public long EndTicks { get; set; }
+
+    [JsonIgnore]
+    public double StartSeconds => (double)StartTicks / 10_000_000.0;
+
+    [JsonIgnore]
+    public double EndSeconds => (double)EndTicks / 10_000_000.0;
+}
+
+public class TrickplayInfoDto
+{
+    [JsonPropertyName("Width")]
+    public int Width { get; set; }
+
+    [JsonPropertyName("Height")]
+    public int Height { get; set; }
+
+    [JsonPropertyName("TileWidth")]
+    public int TileWidth { get; set; } = 1;
+
+    [JsonPropertyName("TileHeight")]
+    public int TileHeight { get; set; } = 1;
+
+    [JsonPropertyName("ThumbnailCount")]
+    public int ThumbnailCount { get; set; }
+
+    [JsonPropertyName("Interval")]
+    public int Interval { get; set; } = 10000; // ms
+
+    [JsonPropertyName("Bandwidth")]
+    public int? Bandwidth { get; set; }
+}
+
+public class RemoteSubtitleInfo
+{
+    [JsonPropertyName("Id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("Name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("ProviderName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("Format")]
+    public string Format { get; set; } = string.Empty;
+
+    [JsonPropertyName("Comment")]
+    public string? Comment { get; set; }
+
+    [JsonPropertyName("ThreeLetterISOLanguageName")]
+    public string? ThreeLetterISOLanguageName { get; set; }
+
+    [JsonPropertyName("CommunityRating")]
+    public float? CommunityRating { get; set; }
+
+    [JsonPropertyName("DownloadCount")]
+    public int? DownloadCount { get; set; }
+}
+
+public class WebSocketMessage<T>
+{
+    [JsonPropertyName("MessageType")]
+    public string MessageType { get; set; } = string.Empty;
+
+    [JsonPropertyName("Data")]
+    public T? Data { get; set; }
+}
+
+public class PlayCommandData
+{
+    [JsonPropertyName("PlayCommand")]
+    public string PlayCommand { get; set; } = "PlayNow";
+
+    [JsonPropertyName("ItemIds")]
+    public List<string> ItemIds { get; set; } = new();
+
+    [JsonPropertyName("StartPositionTicks")]
+    public long? StartPositionTicks { get; set; }
+
+    [JsonPropertyName("MediaSourceId")]
+    public string? MediaSourceId { get; set; }
+
+    [JsonPropertyName("AudioStreamIndex")]
+    public int? AudioStreamIndex { get; set; }
+
+    [JsonPropertyName("SubtitleStreamIndex")]
+    public int? SubtitleStreamIndex { get; set; }
+}
+
+public class PlaystateCommandData
+{
+    [JsonPropertyName("Command")]
+    public string Command { get; set; } = string.Empty;
+
+    [JsonPropertyName("SeekPositionTicks")]
+    public long? SeekPositionTicks { get; set; }
+
+    [JsonPropertyName("ControllingUserId")]
+    public string? ControllingUserId { get; set; }
+}
+
+public class GeneralCommandData
+{
+    [JsonPropertyName("Name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("Arguments")]
+    public Dictionary<string, string> Arguments { get; set; } = new();
+}
+

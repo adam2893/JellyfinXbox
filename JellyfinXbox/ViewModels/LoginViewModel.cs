@@ -9,7 +9,7 @@ using DispatcherQueue = Windows.System.DispatcherQueue;
 
 namespace JellyfinXbox.ViewModels;
 
-public partial class LoginViewModel : ObservableObject
+public partial class LoginViewModel : ObservableObject, IDisposable
 {
     private readonly JellyfinApiClient _api;
     private readonly NavigationService _nav;
@@ -123,14 +123,10 @@ public partial class LoginViewModel : ObservableObject
         PublicUsers.Clear();
         foreach (var u in users) PublicUsers.Add(u);
 
+        ShowPasswordField = true;
         if (PublicUsers.Count == 1)
         {
             Username = PublicUsers[0].Name;
-            ShowPasswordField = true;
-        }
-        else if (PublicUsers.Count > 1)
-        {
-            ShowPasswordField = true;
         }
 
         IsLoading = false;
@@ -168,5 +164,10 @@ public partial class LoginViewModel : ObservableObject
     {
         Username = user.Name;
         ShowPasswordField = true;
+    }
+
+    public void Dispose()
+    {
+        _certTrust.CertificateRejected -= OnCertificateRejected;
     }
 }

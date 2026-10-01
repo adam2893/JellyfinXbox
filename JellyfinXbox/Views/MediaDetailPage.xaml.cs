@@ -37,5 +37,19 @@ public sealed partial class MediaDetailPage : Page
         }
     }
 
+    private void Episode_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is JellyfinClient.Models.BaseItemDto episode)
+            ViewModel.PlayItemCommand.Execute(episode);
+    }
+
+    private void SimilarItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: JellyfinClient.Models.BaseItemDto item })
+        {
+            ViewModel.NavigateToItemCommand.Execute(item);
+        }
+    }
+
     private void Back_Click(object sender, RoutedEventArgs e) => ViewModel.GoBackCommand.Execute(null);
 }

@@ -27,7 +27,7 @@
                        FontSize="14"
                        Foreground="{StaticResource TextMutedBrush}"
                        HorizontalAlignment="Center"
-                       Visibility="Collapsed" />
+                       Visibility="{x:Bind ViewModel.ShowPasswordField, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
             <!-- Server URL -->
             <StackPanel Spacing="8">
@@ -67,10 +67,13 @@
                        TextWrapping="Wrap" />
 
             <!-- User Selection (after connect) -->
-            <StackPanel x:Name="UserPanel" Visibility="Collapsed" Spacing="16">
+            <StackPanel x:Name="UserPanel"
+                        Visibility="{x:Bind ViewModel.ShowPasswordField, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Spacing="16">
                 <!-- User avatars -->
                 <ListView x:Name="UserListView"
                           ItemsSource="{x:Bind ViewModel.PublicUsers}"
+                          Visibility="{x:Bind ViewModel.PublicUsers.Count, Mode=OneWay, Converter={StaticResource CountToVisibilityConverter}}"
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
                           ItemClick="UserListView_ItemClick"
