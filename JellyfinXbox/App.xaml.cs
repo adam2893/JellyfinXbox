@@ -72,25 +72,44 @@ public partial class App : Application
         });
 
         // View models
-        services.AddTransient<LoginViewModel>();
-        services.AddTransient<HomeViewModel>();
-        services.AddTransient<MediaDetailViewModel>();
-        services.AddTransient<PlayerViewModel>();
-        services.AddTransient<SearchViewModel>();
-        services.AddTransient<ShellViewModel>();
-        services.AddTransient<SettingsViewModel>();
-        services.AddTransient<LibraryViewModel>();
-        services.AddTransient<QuickConnectViewModel>();
-        services.AddTransient<DebugViewModel>();
+        services.AddTransient<LoginViewModel>(sp => new LoginViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>(),
+            sp.GetRequiredService<CertificateTrustService>()));
+        services.AddTransient<HomeViewModel>(sp => new HomeViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<MediaDetailViewModel>(sp => new MediaDetailViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<PlayerViewModel>(sp => new PlayerViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<SearchViewModel>(sp => new SearchViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<ShellViewModel>(sp => new ShellViewModel(
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<LibraryViewModel>(sp => new LibraryViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<QuickConnectViewModel>(sp => new QuickConnectViewModel(
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<NavigationService>()));
+        services.AddTransient<DebugViewModel>(sp => new DebugViewModel(
+            sp.GetRequiredService<JellyfinApiClient>()));
 
         // Services
-        services.AddSingleton<NavigationService>();
+        services.AddSingleton<NavigationService>(sp => new NavigationService());
 
         // Xbox controller input (poll-based; started by the Shell).
-        services.AddSingleton<GamepadService>();
+        services.AddSingleton<GamepadService>(sp => new GamepadService());
 
         // Shell (hosts all pages)
-        services.AddTransient<ShellPage>();
+        services.AddTransient<ShellPage>(_ => new ShellPage());
 
         return services.BuildServiceProvider();
     }
@@ -98,7 +117,7 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         MainWindow = Window.Current;
-        MainWindow.Content = Services.GetRequiredService<ShellPage>();
+        MainWindow.Content = new ShellPage();
         MainWindow.Activate();
     }
 

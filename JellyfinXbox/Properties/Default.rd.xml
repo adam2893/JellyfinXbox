@@ -1,0 +1,15 @@
+<Directives xmlns="http://schemas.microsoft.com/netfx/2013/01/metadata">
+  <Application>
+    <!--
+      An Assembly element with Name="*Application*" applies to all assemblies
+      in the application package. The asterisks are not wildcards.
+    -->
+    <Assembly Name="*Application*" Dynamic="Required All" />
+
+    <!-- Runtime directives for reflection-heavy libraries under .NET Native -->
+    <Assembly Name="Microsoft.Extensions.DependencyInjection" Dynamic="Required All" />
+    <Assembly Name="Microsoft.Extensions.DependencyInjection.Abstractions" Dynamic="Required All" />
+    <Assembly Name="CommunityToolkit.Mvvm" Dynamic="Required All" />
+    <Assembly Name="JellyfinClient" Dynamic="Required All" />
+  </Application>
+</Directives>

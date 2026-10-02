@@ -31,7 +31,7 @@ public sealed partial class HomePage : Page
 
     private void LibraryItem_Click(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is BaseItemDto item)
+        if (e.ClickedItem is ViewItem item)
             ViewModel.NavigateToLibraryCommand.Execute(item);
     }
 

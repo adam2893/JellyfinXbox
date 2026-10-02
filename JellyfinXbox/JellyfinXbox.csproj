@@ -49,4 +49,8 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Properties\Default.rd.xml" />
+  </ItemGroup>
+
 </Project>

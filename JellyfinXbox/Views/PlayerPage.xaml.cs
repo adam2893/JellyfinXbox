@@ -3,7 +3,6 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Navigation;
-using DispatcherQueue = Windows.System.DispatcherQueue;
 using JellyfinClient.Models;
 using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
@@ -75,7 +74,7 @@ public sealed partial class PlayerPage : Page
 
     private void OnPlayerInitialized(Windows.Media.Playback.MediaPlayer player)
     {
-        _ = Windows.System.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+        _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
         {
             PlayerElement.SetMediaPlayer(player);
         });
