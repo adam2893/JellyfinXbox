@@ -3,6 +3,7 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Navigation;
+using DispatcherQueue = Windows.System.DispatcherQueue;
 using JellyfinClient.Models;
 using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
@@ -110,11 +111,6 @@ public sealed partial class PlayerPage : Page
         {
             var startPos = tuple.Item2.HasValue ? TimeSpan.FromTicks(tuple.Item2.Value) : (TimeSpan?)null;
             await ViewModel.LoadAsync(tuple.Item1, startPos);
-        }
-        else if (e.Parameter is (string id, long? ticks))
-        {
-            var startPos = ticks.HasValue ? TimeSpan.FromTicks(ticks.Value) : (TimeSpan?)null;
-            await ViewModel.LoadAsync(id, startPos);
         }
     }
 

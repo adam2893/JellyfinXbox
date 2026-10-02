@@ -146,7 +146,7 @@ public partial class MediaDetailViewModel : ObservableObject
         HasSimilarItems = SimilarItems.Count > 0;
 
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             StatusMessage = "Some details could not be loaded. Try again.";
             HasError = true;

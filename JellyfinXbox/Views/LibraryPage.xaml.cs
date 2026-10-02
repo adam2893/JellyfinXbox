@@ -48,7 +48,7 @@ public sealed partial class LibraryPage : Page
     {
         if (e.ClickedItem is BaseItemDto item)
         {
-            if (item.Type == "BoxSet" || item.Type == "Playlist" || item.Type == "Folder" || item.IsFolder == true)
+            if (item.Type == "BoxSet" || item.Type == "Playlist" || item.Type == "Folder")
             {
                 _nav.NavigateTo(typeof(LibraryPage), (item.Id, item.Name ?? "Collection"));
             }

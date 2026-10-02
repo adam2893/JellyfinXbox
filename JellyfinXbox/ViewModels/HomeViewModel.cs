@@ -20,7 +20,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string DisplayName { get; set; }
     [ObservableProperty] public partial string ErrorMessage { get; set; }
 
-    public ObservableCollection<BaseItemDto> Libraries { get; } = new();
+    public ObservableCollection<ViewItem> Libraries { get; } = new();
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
     public ObservableCollection<BaseItemDto> NextUp { get; } = new();
     public ObservableCollection<BaseItemDto> LatestMovies { get; } = new();
@@ -101,7 +101,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void NavigateToLibrary(BaseItemDto item)
+    private void NavigateToLibrary(ViewItem item)
     {
         _nav.NavigateTo(typeof(LibraryPage), (item.Id, item.Name));
     }
