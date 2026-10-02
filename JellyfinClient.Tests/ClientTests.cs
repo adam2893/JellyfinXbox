@@ -1,0 +1,115 @@
+using System.Net;
+using System.Text;
+using JellyfinClient.Models;
+using JellyfinClient.Services;
+using Xunit;
+
+namespace JellyfinClient.Tests;
+
+public sealed class ClientTests
+{
+    [Theory]
+    [InlineData("https://example.test", "/System/Info", "https://example.test/System/Info")]
+    [InlineData("https://example.test/", "System/Info", "https://example.test/System/Info")]
+    [InlineData(null, "/System/Info", "System/Info")]
+    public void EndpointBuilderCombinesBasePath(string? baseUrl, string path, string expected) =>
+        Assert.Equal(expected, JellyfinEndpointBuilder.Combine(baseUrl, path));
+
+    [Fact]
+    public void EndpointBuilderEscapesAndAppendsQuery()
+    {
+        Assert.Equal("Items?name=a%20b&count=2", JellyfinEndpointBuilder.WithQuery("Items", ("name", "a b"), ("count", 2)));
+        Assert.Equal("Items?existing=1&name=x", JellyfinEndpointBuilder.WithQuery("Items?existing=1", ("name", "x")));
+    }
+
+    [Fact]
+    public async Task AuthenticateRejectsResponseWithoutCredentials()
+    {
+        var handler = new RecordingHandler(_ => Json("{\"AccessToken\":\"\",\"User\":null}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+
+        var result = await client.AuthenticateAsync("user", "password");
+
+        Assert.Null(result);
+        Assert.False(client.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task AuthenticatePersistsValidSessionAndLogoutClearsIt()
+    {
+        var store = new MemoryStore();
+        var handler = new RecordingHandler(_ => Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}"));
+        var client = NewClient(handler, store);
+        client.SetServerUrl("https://example.test/");
+
+        Assert.NotNull(await client.AuthenticateAsync("user", "password"));
+        Assert.True(client.IsAuthenticated);
+        client.Logout();
+
+        Assert.False(client.IsAuthenticated);
+        Assert.Equal("https://example.test", client.ServerUrl);
+        Assert.Null(store.Get("session.accessToken"));
+        Assert.Null(store.Get("session.currentUser"));
+    }
+
+    [Fact]
+    public async Task FavoritesReturnEmptyWhenUnauthenticatedAndBuildFavoriteQuery()
+    {
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+            ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+            : Json("{\"Items\":[{\"Id\":\"fav1\",\"Name\":\"Favorite\"}],\"TotalRecordCount\":1}"));
+        var client = NewClient(handler);
+        Assert.Empty((await client.GetFavoriteItemsAsync()).Items);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+
+        var result = await client.GetFavoriteItemsAsync(25, 50);
+
+        Assert.Single(result.Items);
+        Assert.Contains("Filters=IsFavorite", handler.LastRequest!.RequestUri!.Query);
+        Assert.Contains("StartIndex=50", handler.LastRequest.RequestUri.Query);
+        Assert.Contains("Limit=25", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task PaginationUrlEscapesIdsAndIncludesFilters()
+    {
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+            ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+            : Json("{\"Items\":[],\"TotalRecordCount\":0}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+        await client.GetItemsPageAsync("parent / one", 20, 10, "Movie,Episode");
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+        Assert.Contains("ParentId=parent%20%2F%20one", query);
+        Assert.Contains("StartIndex=20", query);
+        Assert.Contains("Limit=10", query);
+        Assert.Contains("Filters=Movie%2CEpisode", query);
+    }
+
+    private static JellyfinApiClient NewClient(HttpMessageHandler handler, ISessionStore? store = null) =>
+        new(new HttpClient(handler), store);
+
+    private static HttpResponseMessage Json(string body) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
+    private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        public HttpRequestMessage? LastRequest { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            LastRequest = request;
+            return Task.FromResult(responder(request));
+        }
+    }
+
+    private sealed class MemoryStore : ISessionStore
+    {
+        private readonly Dictionary<string, string?> values = new();
+        public string? Get(string key) => values.TryGetValue(key, out var value) ? value : null;
+        public void Set(string key, string? value) => values[key] = value;
+    }
+}
