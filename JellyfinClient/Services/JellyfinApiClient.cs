@@ -77,9 +77,9 @@ public class JellyfinApiClient
 
     private void ApplyAuth()
     {
-        const string client = "BoxJellyfish";
+        const string client = "XboxJellyfish";
         const string device = "Xbox Series";
-        const string deviceId = "BoxJellyfish-Xbox";
+        const string deviceId = "XboxJellyfish-Xbox";
         const string version = "1.0.0.0";
 
         if (!string.IsNullOrEmpty(AccessToken))
@@ -240,7 +240,7 @@ public class JellyfinApiClient
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<AuthenticationResult>(_jsonOpts);
-            if (result != null)
+            if (result != null && !string.IsNullOrWhiteSpace(result.AccessToken) && result.User != null && !string.IsNullOrWhiteSpace(result.User.Id))
             {
                 AccessToken = result.AccessToken;
                 CurrentUser = result.User;
@@ -248,7 +248,7 @@ public class JellyfinApiClient
                 PersistSession();
                 OnAuthenticationChanged?.Invoke();
             }
-            return result;
+            return result != null && !string.IsNullOrWhiteSpace(result.AccessToken) && result.User != null && !string.IsNullOrWhiteSpace(result.User.Id) ? result : null;
         }
         catch (HttpRequestException) { return null; }
     }
@@ -864,7 +864,7 @@ public class JellyfinApiClient
                 var baseUri = new Uri(ServerUrl);
                 var wsScheme = baseUri.Scheme == "https" ? "wss" : "ws";
                 var path = baseUri.AbsolutePath.TrimEnd('/');
-                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}{path}/socket?api_key={Uri.EscapeDataString(AccessToken)}&deviceId=BoxJellyfish-Xbox");
+                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}{path}/socket?api_key={Uri.EscapeDataString(AccessToken)}&deviceId=XboxJellyfish-Xbox");
 
                 _webSocket = new ClientWebSocket();
                 await _webSocket.ConnectAsync(wsUri, ct);

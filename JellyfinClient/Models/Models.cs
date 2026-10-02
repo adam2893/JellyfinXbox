@@ -394,7 +394,7 @@ public class DeviceProfileBuilder
         return $$"""
         {
           "DeviceProfile": {
-            "Name": "BoxJellyfish Xbox",
+            "Name": "XboxJellyfish Xbox",
             "MaxStreamingBitrate": {{bitrate}},
             "MaxStaticBitrate": {{bitrate}},
             "MusicStreamingTranscodingBitrate": 192000,

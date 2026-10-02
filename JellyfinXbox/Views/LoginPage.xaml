@@ -13,7 +13,7 @@
             <StackPanel Spacing="12" Margin="0 0 0 20">
                 <Image Source="Assets/Logo.png" Width="64" Height="64" Stretch="Uniform"
                        HorizontalAlignment="Center" />
-                <TextBlock Text="BoxJellyfish" FontSize="32" FontWeight="SemiBold"
+                <TextBlock Text="XboxJellyfish" FontSize="32" FontWeight="SemiBold"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="a Jellyfin client for Xbox Series" FontSize="16"

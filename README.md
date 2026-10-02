@@ -1,4 +1,4 @@
-# BoxJellyfish
+# XboxJellyfish
 
 A beautiful, fast **Jellyfin client** built natively for Xbox Series X/S with **hardware AV1 decoding** and **native OPUS audio** support.
 
@@ -43,7 +43,7 @@ A beautiful, fast **Jellyfin client** built natively for Xbox Series X/S with **
 ```
 JellyfinXbox/
 ├── JellyfinXbox.sln
-├── JellyfinXbox/                  # UWP App (BoxJellyfish)
+├── JellyfinXbox/                  # UWP App (XboxJellyfish)
 │   ├── App.xaml                   # DI setup, theme resources
 │   ├── App.xaml.cs                # DI, TLS trust handler, suspend handling
 │   ├── ShellPage.xaml             # Navigation shell + gamepad shortcuts
@@ -143,7 +143,7 @@ The workflow in [`.github/workflows/build-xbox-appx.yml`](.github/workflows/buil
 1. Trust the certificate: double-click `JellyfinXbox.cer` → Install Certificate → **Local Machine** → **Trusted Root Certification Authorities**. (Use the `.cer` from the same zip as the `.msix` — every build mints a fresh cert.)
 2. Enable sideloading: Settings → Privacy & security → For developers → **Developer Mode**.
 3. Install: right-click `JellyfinXbox_1.0.0.0_x64.msix` → **Install** (or `Add-AppxPackage -Path .\JellyfinXbox_1.0.0.0_x64.msix -DependencyPath .\Microsoft.VCLibs.x64.14.00.appx` in an admin PowerShell).
-4. Launch **BoxJellyfish** from Start, connect to your server, and run **Settings → API Self-Check** to validate the connection.
+4. Launch **XboxJellyfish** from Start, connect to your server, and run **Settings → API Self-Check** to validate the connection.
 
 ### Install on your Xbox
 1. Put the console in **Developer Mode** — install the free **Xbox Dev Mode** app from the Store, activate it with a Store developer account, then *Switch and restart* ([official docs](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation))
@@ -205,10 +205,21 @@ The Xbox device profile is tuned for maximum direct play with any Jellyfin serve
 
 ## 🏷 Branding
 
-- **App name:** BoxJellyfish — per [Jellyfin's branding policy](https://jellyfin.org/docs/general/contributing/branding/), the "Jellyfin" name is reserved for the project and its official clients; third-party clients must use their own name and may reference Jellyfin as "a Jellyfin client".
+- **App name:** XboxJellyfish — per [Jellyfin's branding policy](https://jellyfin.org/docs/general/contributing/branding/), the "Jellyfin" name is reserved for the project and its official clients; third-party clients must use their own name and may reference Jellyfin as "a Jellyfin client".
 - **Logo:** custom pixel-art jellyfish using Jellyfin's purple→blue color gradient on a unique shape (the gradient is permitted by the branding policy; the official logo shape is not).
 - **Identity:** `com.boxjellyfish.app`, publisher `CN=AutoClaw`.
 
 ## 📄 License
 
 MIT
+
+## Release and support documentation
+
+- [Store listing copy](docs/STORE-LISTING.md)
+- [Features and limitations](docs/FEATURES-AND-LIMITATIONS.md)
+- [Privacy policy](docs/PRIVACY.md)
+- [Support guidance](docs/SUPPORT.md)
+- [Independent Jellyfin disclaimer](docs/JELLYFIN-DISCLAIMER.md)
+- [Release checklist](docs/RELEASE-CHECKLIST.md)
+- [Xbox manual test matrix](docs/XBOX-MANUAL-TEST-MATRIX.md) — Xbox validation is explicitly pending until completed
+- [Licensing and monetization decision](docs/LICENSING-AND-MONETIZATION.md)

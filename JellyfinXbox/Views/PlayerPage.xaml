@@ -28,9 +28,9 @@
 
         <Border Visibility="{x:Bind ViewModel.HasPlaybackError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Background="#F00B1020" Padding="28" CornerRadius="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
             <StackPanel Spacing="14">
-                <TextBlock Text="Playback unavailable" FontSize="22" FontWeight="SemiBold" Foreground="White" />
+                <TextBlock Text="Playback unavailable" AutomationProperties.Name="Playback unavailable" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                 <TextBlock Text="{x:Bind ViewModel.PlaybackErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="White" />
-                <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="Retry" Command="{x:Bind ViewModel.RetryPlaybackCommand}" /><Button Content="Back" Command="{x:Bind ViewModel.StopCommand}" /></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="Try again" AutomationProperties.Name="Try playback again" Command="{x:Bind ViewModel.RetryPlaybackCommand}" /><Button Content="Back" AutomationProperties.Name="Go back" Command="{x:Bind ViewModel.StopCommand}" /></StackPanel>
             </StackPanel>
         </Border>
 

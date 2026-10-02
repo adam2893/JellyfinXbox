@@ -50,6 +50,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsDirectPlay { get; set; }
     [ObservableProperty] public partial bool HasPlaybackError { get; set; }
     [ObservableProperty] public partial string PlaybackErrorMessage { get; set; } = "";
+    [ObservableProperty] public partial string PlaybackStatusMessage { get; set; } = "";
 
     /// <summary>Seek slider position in seconds (TwoWay-bound in XAML).</summary>
     [ObservableProperty] public partial double SliderSeconds { get; set; }
@@ -117,6 +118,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _upNextDismissed = false;
         HasPlaybackError = false;
         PlaybackErrorMessage = "";
+        PlaybackStatusMessage = "Loading playback…";
         // Detach the old media instance before awaiting network work so late
         // events from it cannot update the newly requested item's state.
         if (_player != null)
@@ -134,6 +136,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         if (item == null)
         {
             PlaybackErrorMessage = itemResult.Error?.Message ?? "This item could not be found.";
+            PlaybackStatusMessage = "Playback is unavailable.";
             HasPlaybackError = true;
             return;
         }
@@ -241,6 +244,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         {
             IsBuffering = false;
             PlaybackErrorMessage = playbackResult.Error?.Message ?? "This item could not be played. Check the server connection and try again.";
+            PlaybackStatusMessage = "Playback is unavailable.";
             HasPlaybackError = true;
             return;
         }
@@ -413,6 +417,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             HasVideo = sender.PlaybackSession.NaturalVideoHeight > 0;
             IsBuffering = false;
             HasPlaybackError = false;
+            PlaybackStatusMessage = "Playing";
             Debug.WriteLine($"[Player] Opened. Duration: {Duration}, Video: {sender.PlaybackSession.NaturalVideoWidth}x{sender.PlaybackSession.NaturalVideoHeight}");
 
             if (_initialSeekPosition.HasValue && _initialSeekPosition.Value > TimeSpan.Zero)
@@ -587,8 +592,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     {
         if (!ReferenceEquals(sender, _player)) return;
         Debug.WriteLine($"[Player] Failed: {args.Error}, Extended: {args.ExtendedErrorCode}");
-        IsBuffering = false;
-        IsPlaying = false;
+            IsBuffering = false;
+            IsPlaying = false;
 
         if (_currentItemId == null || _currentMediaSource == null) return;
 
@@ -606,6 +611,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
         PlaybackErrorMessage = "Playback stopped unexpectedly. Retry or go back and try another source.";
+        PlaybackStatusMessage = "Playback stopped unexpectedly.";
         HasPlaybackError = true;
     }
 

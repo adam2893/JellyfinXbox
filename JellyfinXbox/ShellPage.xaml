@@ -32,7 +32,7 @@
                     <!-- Logo -->
                     <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0 0 0 24">
                         <Image Source="Assets/Logo.png" Width="48" Height="48" Stretch="Uniform" />
-                        <TextBlock Text="BoxJellyfish" FontSize="10"
+                        <TextBlock Text="XboxJellyfish" FontSize="10"
                                    Foreground="{StaticResource TextMutedBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>

@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to **BoxJellyfish** (formerly JellyfinXbox).
+All notable changes to **XboxJellyfish** (formerly JellyfinXbox).
 
 ## [1.0.0] — 2026-08-03
 
 ### Rename & branding
-- Renamed the app from "Jellyfin" to **BoxJellyfish** for compliance with [Jellyfin's branding policy](https://jellyfin.org/docs/general/contributing/branding/) (the "Jellyfin" name is reserved for the project and its official clients).
+- Renamed the app from "Jellyfin" to **XboxJellyfish** for compliance with [Jellyfin's branding policy](https://jellyfin.org/docs/general/contributing/branding/) (the "Jellyfin" name is reserved for the project and its official clients).
 - Package identity changed to `com.boxjellyfish.app` (publisher `CN=AutoClaw` unchanged, so the sideload cert still matches).
 - New pixel-art jellyfish logo (Jellyfin purple→blue gradient, transparent background) generated with Pixellab; all manifest tile assets regenerated from the master (Store, 44–310 squares, Wide310×150, SplashScreen, 1024 icon); in-app Shell rail + Login logo now use the artwork.
 

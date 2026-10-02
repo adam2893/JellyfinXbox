@@ -124,9 +124,14 @@
                                 Foreground="{StaticResource TextPrimaryBrush}" />
                     </StackPanel>
                 </Grid>
-                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                 <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                            Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
-                           Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+                            Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+                <Button Content="Try again"
+                        Command="{x:Bind ViewModel.RetryCommand}"
+                        Style="{StaticResource AccentButtonStyle}"
+                        HorizontalAlignment="Left"
+                        Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                 <!-- Description -->
                 <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}"

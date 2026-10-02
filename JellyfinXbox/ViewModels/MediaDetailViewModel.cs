@@ -18,6 +18,7 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty] public partial bool IsUpdatingFavorite { get; set; }
     [ObservableProperty] public partial string FavoriteLabel { get; set; } = "Add to favorites";
     [ObservableProperty] public partial string StatusMessage { get; set; } = "";
+    [ObservableProperty] public partial bool HasError { get; set; }
     [ObservableProperty] public partial string ResumeLabel { get; set; } = "Play";
     [ObservableProperty] public partial bool IsSeries { get; set; }
     [ObservableProperty] public partial bool HasSimilarItems { get; set; }
@@ -34,6 +35,7 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty] public partial int SelectedSeasonIndex { get; set; }
 
     private string? _trailerItemId;
+    private string? _loadedItemId;
 
     public ObservableCollection<BaseItemDto> Seasons { get; } = new();
     public ObservableCollection<BaseItemDto> Episodes { get; } = new();
@@ -51,6 +53,8 @@ public partial class MediaDetailViewModel : ObservableObject
     {
         IsLoading = true;
         StatusMessage = "";
+        HasError = false;
+        _loadedItemId = itemId;
         Item = null;
         IsSeries = false;
         Seasons.Clear();
@@ -60,7 +64,8 @@ public partial class MediaDetailViewModel : ObservableObject
         var (item, error) = await _api.GetItemResultAsync(itemId);
         if (item == null)
         {
-            StatusMessage = error == null ? "This item is unavailable. Try again later." : $"Couldn't load item: {error.Message}";
+            StatusMessage = error == null ? "This item is unavailable. Try again later." : $"We couldn't load this item. Check your connection and try again.";
+            HasError = true;
             IsLoading = false;
             return;
         }
@@ -143,12 +148,19 @@ public partial class MediaDetailViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Some details could not be loaded: {ex.Message}";
+            StatusMessage = "Some details could not be loaded. Try again.";
+            HasError = true;
         }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task RetryAsync()
+    {
+        if (!string.IsNullOrEmpty(_loadedItemId)) await LoadAsync(_loadedItemId);
     }
 
     [RelayCommand]

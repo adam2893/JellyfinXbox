@@ -55,7 +55,7 @@ public partial class DebugViewModel : ObservableObject
         // Excludes access tokens and credentials. Self-check details may include
         // server/user/media metadata, so the user must review before sharing.
         var host = _api.ServerUrl == null ? "not configured" : Uri.TryCreate(_api.ServerUrl, UriKind.Absolute, out var u) ? u.Host : "invalid";
-        var lines = new List<string> { $"BoxJellyfish diagnostics", $"App version: {AppVersion}", $"OS: {Environment.OSVersion}", $"Server host: {host}", $"Authenticated: {_api.IsAuthenticated}", $"Generated (UTC): {DateTimeOffset.UtcNow:O}" };
+        var lines = new List<string> { $"XboxJellyfish diagnostics", $"App version: {AppVersion}", $"OS: {Environment.OSVersion}", $"Server host: {host}", $"Authenticated: {_api.IsAuthenticated}", $"Generated (UTC): {DateTimeOffset.UtcNow:O}" };
         lines.AddRange(Results.Select(r => $"{r.Name}: {(r.Ok ? "PASS" : "FAIL")} ({r.ElapsedMs} ms) - {r.Detail}"));
         return string.Join(Environment.NewLine, lines);
     }
