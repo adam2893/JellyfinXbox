@@ -361,6 +361,25 @@ public class JellyfinApiClient
         catch { return new(); }
     }
 
+    public async Task<ItemsResult> GetItemsPageAsync(string parentId, int startIndex, int limit, string? filters = null)
+    {
+        if (CurrentUser == null) throw new InvalidOperationException("Not signed in.");
+        var url = $"Items?userId={Uri.EscapeDataString(CurrentUser.Id)}&ParentId={Uri.EscapeDataString(parentId)}&StartIndex={startIndex}&Limit={limit}&Recursive=true&SortBy=SortName&SortOrder=Ascending";
+        if (!string.IsNullOrEmpty(filters)) url += $"&Filters={Uri.EscapeDataString(filters)}";
+        return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts)
+            ?? throw new InvalidOperationException("The server returned no library results.");
+    }
+
+    public async Task<ItemsResult> GetUserItemsPageAsync(string? itemType, bool favorites, int startIndex, int limit)
+    {
+        if (CurrentUser == null) throw new InvalidOperationException("Not signed in.");
+        var url = $"Users/{Uri.EscapeDataString(CurrentUser.Id)}/Items?Recursive=true&StartIndex={startIndex}&Limit={limit}&SortBy=SortName&SortOrder=Ascending";
+        if (favorites) url += "&Filters=IsFavorite";
+        if (itemType != null) url += $"&IncludeItemTypes={Uri.EscapeDataString(itemType)}";
+        return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts)
+            ?? throw new InvalidOperationException("The server returned no library results.");
+    }
+
     public async Task<ItemsResult> GetResumeItemsAsync(int limit = 12)
     {
         if (CurrentUser == null) return new();
@@ -608,15 +627,12 @@ public class JellyfinApiClient
 
     public async Task ToggleFavoriteAsync(string itemId, bool isCurrentlyFavorite = false)
     {
-        if (CurrentUser == null) return;
-        try
-        {
-            if (isCurrentlyFavorite)
-                await _http.DeleteAsync($"UserFavoriteItems/{itemId}?userId={CurrentUser.Id}");
-            else
-                await _http.PostAsync($"UserFavoriteItems/{itemId}?userId={CurrentUser.Id}", null);
-        }
-        catch { }
+        if (CurrentUser == null) throw new InvalidOperationException("Not signed in.");
+        var url = $"UserFavoriteItems/{Uri.EscapeDataString(itemId)}?userId={Uri.EscapeDataString(CurrentUser.Id)}";
+        using var response = isCurrentlyFavorite
+            ? await _http.DeleteAsync(url)
+            : await _http.PostAsync(url, null);
+        response.EnsureSuccessStatusCode();
     }
 
     /// <summary>

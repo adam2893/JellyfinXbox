@@ -44,7 +44,18 @@
 
                 <ProgressRing IsActive="{x:Bind ViewModel.IsRunning, Mode=OneWay}"
                               Width="32" Height="32"
-                              Foreground="{StaticResource AccentBrush}" />
+                               Foreground="{StaticResource AccentBrush}" />
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Support report (local only)" FontSize="18" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Copy a local report for support. Nothing is uploaded automatically; review server and media details before sharing."
+                               Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                    <Button Content="Copy diagnostic report" Command="{x:Bind ViewModel.CopyReportCommand}"
+                            Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
+                    <TextBlock Text="Version 1.0.0.0 · Support: github.com/adam2893/JellyfinXbox/issues"
+                               Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
+                </StackPanel>
 
                 <!-- Results -->
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Results}">

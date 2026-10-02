@@ -14,6 +14,11 @@ public partial class MediaDetailViewModel : ObservableObject
     private readonly NavigationService _nav;
 
     [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial bool IsFavorite { get; set; }
+    [ObservableProperty] public partial bool IsUpdatingFavorite { get; set; }
+    [ObservableProperty] public partial string FavoriteLabel { get; set; } = "Add to favorites";
+    [ObservableProperty] public partial string StatusMessage { get; set; } = "";
+    [ObservableProperty] public partial string ResumeLabel { get; set; } = "Play";
     [ObservableProperty] public partial bool IsSeries { get; set; }
     [ObservableProperty] public partial bool HasSimilarItems { get; set; }
     [ObservableProperty] public partial bool HasTrailer { get; set; }
@@ -45,15 +50,28 @@ public partial class MediaDetailViewModel : ObservableObject
     public async Task LoadAsync(string itemId)
     {
         IsLoading = true;
+        StatusMessage = "";
+        Item = null;
+        IsSeries = false;
+        Seasons.Clear();
+        Episodes.Clear();
+        HasSimilarItems = false;
 
-        var item = await _api.GetItemAsync(itemId);
+        var (item, error) = await _api.GetItemResultAsync(itemId);
         if (item == null)
         {
+            StatusMessage = error == null ? "This item is unavailable. Try again later." : $"Couldn't load item: {error.Message}";
             IsLoading = false;
             return;
         }
 
+        try
+        {
         Item = item;
+        IsFavorite = item.UserData?.IsFavorite == true;
+        FavoriteLabel = IsFavorite ? "Remove from favorites" : "Add to favorites";
+        var ticks = item.UserData?.PlaybackPositionTicks ?? 0;
+        ResumeLabel = ticks > 0 ? $"Resume at {TimeSpan.FromTicks(ticks):h\\:mm\\:ss}" : "Play";
         Title = item.Name;
         Description = item.Overview;
 
@@ -122,7 +140,33 @@ public partial class MediaDetailViewModel : ObservableObject
         foreach (var sim in similar.Items) SimilarItems.Add(sim);
         HasSimilarItems = SimilarItems.Count > 0;
 
-        IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Some details could not be loaded: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync()
+    {
+        if (Item == null || IsUpdatingFavorite) return;
+        IsUpdatingFavorite = true;
+        StatusMessage = "";
+        try
+        {
+            await _api.ToggleFavoriteAsync(Item.Id, IsFavorite);
+            IsFavorite = !IsFavorite;
+            if (Item.UserData != null) Item.UserData.IsFavorite = IsFavorite;
+            FavoriteLabel = IsFavorite ? "Remove from favorites" : "Add to favorites";
+            StatusMessage = IsFavorite ? "Added to favorites." : "Removed from favorites.";
+        }
+        catch (Exception ex) { StatusMessage = $"Couldn't update favorites: {ex.Message}"; }
+        finally { IsUpdatingFavorite = false; }
     }
 
     private async Task LoadSeasonsAsync(string seriesId)

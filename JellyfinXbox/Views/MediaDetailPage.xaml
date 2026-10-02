@@ -100,7 +100,7 @@
                     <StackPanel Grid.Row="1" Grid.Column="1"
                                 Orientation="Horizontal" Spacing="16"
                                 VerticalAlignment="Top">
-                        <Button Content="&#xE768;  Play"
+                        <Button Content="{x:Bind ViewModel.ResumeLabel, Mode=OneWay}"
                                 Command="{x:Bind ViewModel.PlayItemCommand}"
                                 CommandParameter="{x:Bind ViewModel.Item, Mode=OneWay}"
                                 Style="{StaticResource AccentButtonStyle}"
@@ -110,6 +110,11 @@
                                 <KeyboardAccelerator Key="Enter" />
                             </Button.KeyboardAccelerators>
                         </Button>
+                        <Button Content="{x:Bind ViewModel.FavoriteLabel, Mode=OneWay}"
+                                Command="{x:Bind ViewModel.ToggleFavoriteCommand}"
+                                FontSize="16" Padding="24 16" CornerRadius="10"
+                                Background="{StaticResource SurfaceTertiaryBrush}"
+                                Foreground="{StaticResource TextPrimaryBrush}" />
                         <Button Content="&#xE8E1;  Trailer"
                                 Command="{x:Bind ViewModel.PlayTrailerCommand}"
                                 Visibility="{x:Bind ViewModel.HasTrailer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -119,6 +124,9 @@
                                 Foreground="{StaticResource TextPrimaryBrush}" />
                     </StackPanel>
                 </Grid>
+                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                           Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
+                           Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
 
                 <!-- Description -->
                 <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}"

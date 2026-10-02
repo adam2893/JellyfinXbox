@@ -54,6 +54,7 @@
 
         <!-- Items grid -->
         <ScrollViewer Grid.Row="1" Padding="64 32 64 64">
+            <StackPanel Spacing="16">
             <GridView x:Name="ItemsGrid"
                       ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}"
                       SelectionMode="None"
@@ -87,6 +88,10 @@
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
+            <Button Content="Load more" Command="{x:Bind ViewModel.LoadMoreCommand}"
+                    HorizontalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.HasMore, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+            </StackPanel>
         </ScrollViewer>
         <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
             <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="44" Height="44"
