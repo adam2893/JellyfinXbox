@@ -75,7 +75,7 @@ public sealed partial class PlayerPage : Page
 
     private void OnPlayerInitialized(Windows.Media.Playback.MediaPlayer player)
     {
-        _ = DispatcherQueue.TryEnqueue(() =>
+        _ = Windows.System.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
         {
             PlayerElement.SetMediaPlayer(player);
         });
