@@ -245,9 +245,21 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Width="100" Spacing="8">
-                                        <PersonPicture DisplayName="{Binding Name}"
-                                                       ProfilePicture="{Binding Converter={StaticResource PersonImageConverter}}"
-                                                       Width="72" Height="72" />
+                                        <Border Width="72" Height="72" CornerRadius="36"
+                                                Background="{StaticResource SurfaceTertiaryBrush}"
+                                                HorizontalAlignment="Center">
+                                            <Grid>
+                                                <FontIcon Glyph="&#xE77B;" FontSize="28"
+                                                          Foreground="{StaticResource TextMutedBrush}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Border CornerRadius="36">
+                                                    <Border.Background>
+                                                        <ImageBrush ImageSource="{Binding Converter={StaticResource PersonImageConverter}}"
+                                                                    Stretch="UniformToFill" />
+                                                    </Border.Background>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="13" FontWeight="Medium"
                                                    Foreground="{StaticResource TextPrimaryBrush}"

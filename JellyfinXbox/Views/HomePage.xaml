@@ -27,9 +27,12 @@
                                Foreground="{StaticResource TextSecondaryBrush}" />
                 </StackPanel>
                 <!-- User avatar -->
-                <PersonPicture Grid.Column="1"
-                               DisplayName="{x:Bind ViewModel.DisplayName}"
-                               Width="48" Height="48" />
+                <Border Grid.Column="1" Width="48" Height="48" CornerRadius="24"
+                        Background="{StaticResource SurfaceTertiaryBrush}">
+                    <FontIcon Glyph="&#xE77B;" FontSize="24"
+                              Foreground="{StaticResource TextSecondaryBrush}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
             </Grid>
 
             <!-- ═══════════════════════════════════════ -->

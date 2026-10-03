@@ -84,8 +84,12 @@
                                         Padding="16 12"
                                         CornerRadius="8"
                                         Background="{StaticResource SurfaceTertiaryBrush}">
-                                <PersonPicture DisplayName="{Binding Name}"
-                                               Width="48" Height="48" />
+                                <Border Width="48" Height="48" CornerRadius="24"
+                                        Background="{StaticResource SurfaceActiveBrush}">
+                                    <FontIcon Glyph="&#xE77B;" FontSize="24"
+                                              Foreground="{StaticResource TextSecondaryBrush}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
                                 <TextBlock Text="{Binding Name}"
                                            FontSize="18" VerticalAlignment="Center"
                                            Foreground="{StaticResource TextPrimaryBrush}" />
