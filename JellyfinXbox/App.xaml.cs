@@ -18,16 +18,31 @@ public partial class App : Application
 
     public App()
     {
-        this.InitializeComponent();
-        Services = ConfigureServices();
-        Suspending += OnSuspending;
-
-        // 10-foot UI: use the Xbox reveal focus visuals on consoles.
-        if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox")
+        StartupDiagnostics.BeginLaunch();
+        try
         {
-            FocusVisualKind = FocusVisualKind.Reveal;
+            StartupDiagnostics.Stage("app.initialize-component");
+            this.InitializeComponent();
+            StartupDiagnostics.Stage("app.resources");
+            StartupDiagnostics.Stage("app.di");
+            Services = ConfigureServices();
+            Suspending += OnSuspending;
+            StartupDiagnostics.Stage("app.focus-configuration");
+            if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox")
+                FocusVisualKind = FocusVisualKind.Reveal;
+            StartupDiagnostics.Stage("app.constructor-complete");
         }
+        catch (System.Exception ex)
+        {
+            StartupDiagnostics.Exception("app.constructor", ex);
+            StartupFailure = ex;
+        }
+
+        UnhandledException += (_, e) => StartupDiagnostics.Exception("xaml.unhandled", e.Exception);
+
     }
+
+    internal static System.Exception? StartupFailure { get; private set; }
 
     private static IServiceProvider ConfigureServices()
     {
@@ -116,9 +131,43 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        if (StartupFailure == null) StartupDiagnostics.Stage("app.on-launched");
         MainWindow = Window.Current;
-        MainWindow.Content = new ShellPage();
-        MainWindow.Activate();
+        try
+        {
+            if (StartupFailure != null) { ShowRecovery("APP-INIT", StartupFailure); return; }
+            StartupDiagnostics.Stage("shell.construct");
+            MainWindow.Content = new ShellPage();
+            StartupDiagnostics.Stage("shell.assigned");
+            MainWindow.Activate();
+        }
+        catch (System.Exception ex)
+        {
+            StartupDiagnostics.Exception("app.on-launched", ex);
+            ShowRecovery("APP-LAUNCH", ex);
+        }
+    }
+
+    internal static void ShowRecovery(string code, System.Exception ex)
+    {
+        StartupDiagnostics.Exception(code, ex);
+        RecoveryScreen.Show(MainWindow, "Startup failed", $"Stage: {StartupDiagnostics.LastStage}\nCode: {code}\n{ex.GetType().Name} (0x{ex.HResult:X8})");
+    }
+
+    private static class RecoveryScreen
+    {
+        public static void Show(Window window, string title, string detail)
+        {
+            try
+            {
+                var panel = new Windows.UI.Xaml.Controls.StackPanel { HorizontalAlignment = Windows.UI.Xaml.HorizontalAlignment.Center, VerticalAlignment = Windows.UI.Xaml.VerticalAlignment.Center };
+                var foreground = new Windows.UI.Xaml.Media.SolidColorBrush(Windows.UI.Colors.White);
+                panel.Children.Add(new Windows.UI.Xaml.Controls.TextBlock { Text = title, Foreground = foreground, FontSize = 32, Margin = new Windows.UI.Xaml.Thickness(20) });
+                panel.Children.Add(new Windows.UI.Xaml.Controls.TextBlock { Text = detail + "\nPhotograph this screen for support.\nLocal log: startup-diagnostics.log", Foreground = foreground, TextWrapping = TextWrapping.Wrap, FontSize = 22, Margin = new Windows.UI.Xaml.Thickness(20) });
+                window.Content = new Windows.UI.Xaml.Controls.Grid { Background = new Windows.UI.Xaml.Media.SolidColorBrush(Windows.UI.Colors.Black), Children = { panel } }; window.Activate();
+            }
+            catch { }
+        }
     }
 
     /// <summary>

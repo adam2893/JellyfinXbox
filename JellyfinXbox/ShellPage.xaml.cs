@@ -10,29 +10,47 @@ namespace JellyfinXbox;
 
 public sealed partial class ShellPage : Page
 {
-    private readonly NavigationService _nav;
-    private readonly GamepadService _gamepad;
+    private bool _loaded;
+    private NavigationService _nav = null!;
+    private GamepadService _gamepad = null!;
 
     public ShellPage()
     {
-        InitializeComponent();
-        _nav = App.Services.GetRequiredService<NavigationService>();
-        _gamepad = App.Services.GetRequiredService<GamepadService>();
-        _nav.Initialize(ContentFrame);
+        try
+        {
+            StartupDiagnostics.Stage("shell.initialize-component");
+            InitializeComponent();
+            StartupDiagnostics.Stage("shell.service-resolution");
+            _nav = App.Services.GetRequiredService<NavigationService>();
+            _gamepad = App.Services.GetRequiredService<GamepadService>();
+            _nav.Initialize(ContentFrame);
+        }
+        catch (System.Exception ex) { App.ShowRecovery("SHELL-INIT", ex); throw; }
 
         Loaded += OnLoaded;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        if (_loaded) return;
+        _loaded = true;
+        try { OnLoadedCore(); }
+        catch (System.Exception ex) { App.ShowRecovery("SHELL-LOADED", ex); }
+    }
+
+    private void OnLoadedCore()
+    {
+        StartupDiagnostics.Stage("shell.loaded");
         // 10-foot UI: global controller shortcuts. D-pad/left-stick focus
         // navigation and A/B activation are handled natively by XAML on
         // Xbox, so only the non-native buttons are mapped here. The shell
         // lives for the app's lifetime, so subscribe once, no unsubscribe.
+        StartupDiagnostics.Stage("shell.gamepad-start");
         _gamepad.Start();
         _gamepad.OnMenuPressed += OnMenuPressed;  // ☰ → Settings
         _gamepad.OnViewPressed += OnViewPressed;  // ⊞ → Quick Connect
 
+        StartupDiagnostics.Stage("shell.api-resolution");
         var api = App.Services.GetRequiredService<JellyfinApiClient>();
 
         // Remote control casting ("Play To Xbox")
@@ -54,13 +72,14 @@ public sealed partial class ShellPage : Page
 
         if (!api.IsAuthenticated)
         {
-            _nav.NavigateTo(typeof(LoginPage));
+            StartupDiagnostics.Stage("shell.login-navigation"); _nav.NavigateTo(typeof(LoginPage));
         }
         else
         {
             NavHome.IsChecked = true;
-            _nav.NavigateTo(typeof(HomePage));
+            StartupDiagnostics.Stage("shell.home-navigation"); _nav.NavigateTo(typeof(HomePage));
         }
+        StartupDiagnostics.Stage("shell.ready");
     }
 
     private void OnMenuPressed()
