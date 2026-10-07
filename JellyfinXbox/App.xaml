@@ -45,6 +45,9 @@
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressed}" />
             <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlow}" />
             <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
+            <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
+            <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
 
         </ResourceDictionary>
     </Application.Resources>
