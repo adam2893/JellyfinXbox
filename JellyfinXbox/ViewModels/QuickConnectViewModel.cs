@@ -82,12 +82,19 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
                 StatusMessage = $"Authorized! Connecting...";
 
                 // Exchange the secret for an access token
-                var connectResult = await _api.QuickConnectConnectAsync(secret);
+                // Jellyfin may return the exchange secret in the authorize
+                // response. Prefer it when present; older servers leave it
+                // empty and require the original initiate secret.
+                var exchangeSecret = !string.IsNullOrWhiteSpace(authResult.Secret)
+                    ? authResult.Secret
+                    : secret;
+                var connectResult = await _api.QuickConnectConnectAsync(exchangeSecret);
                 if (connectResult != null)
                 {
                     IsSuccess = true;
                     ConnectedUserName = connectResult.User.Name;
                     StatusMessage = $"Connected as {ConnectedUserName}!";
+                    IsActive = false;
                     Debug.WriteLine($"[QuickConnect] Connected as {ConnectedUserName}");
 
                     // Navigate to home after a short delay
