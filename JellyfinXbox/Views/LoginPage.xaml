@@ -104,7 +104,7 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Username" FontSize="14"
                                Foreground="{StaticResource TextSecondaryBrush}" />
-                    <TextBox Text="{x:Bind ViewModel.Username, Mode=TwoWay}"
+                    <TextBox x:Name="UsernameBox" Text="{x:Bind ViewModel.Username, Mode=TwoWay}"
                              FontSize="18"
                              Background="{StaticResource SurfaceTertiaryBrush}"
                              Foreground="{StaticResource TextPrimaryBrush}"
@@ -116,7 +116,7 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Password" FontSize="14"
                                Foreground="{StaticResource TextSecondaryBrush}" />
-                    <PasswordBox Password="{x:Bind ViewModel.Password, Mode=TwoWay}"
+                    <PasswordBox x:Name="PasswordInput" Password="{x:Bind ViewModel.Password, Mode=TwoWay}"
                                  FontSize="18"
                                  Background="{StaticResource SurfaceTertiaryBrush}"
                                  Foreground="{StaticResource TextPrimaryBrush}"

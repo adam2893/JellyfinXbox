@@ -20,6 +20,18 @@ public sealed partial class LoginPage : Page
         ViewModel = App.Services.GetRequiredService<LoginViewModel>();
         _nav = App.Services.GetRequiredService<NavigationService>();
         InitializeComponent();
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewModel.ShowPasswordField) && ViewModel.ShowPasswordField)
+        {
+            _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+            {
+                UsernameBox.Focus(FocusState.Programmatic);
+            });
+        }
     }
 
     private void ServerUrlBox_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -49,6 +61,7 @@ public sealed partial class LoginPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
     }
 }
