@@ -4,9 +4,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:JellyfinXbox.Views">
 
-    <Grid Background="{StaticResource SurfacePrimaryBrush}"
-          Padding="80 0"
-          HorizontalAlignment="Center" VerticalAlignment="Center">
+    <ScrollViewer Background="{StaticResource SurfacePrimaryBrush}"
+                  HorizontalScrollMode="Disabled"
+                  VerticalScrollBarVisibility="Hidden">
+    <Grid Padding="80 40 80 80"
+          HorizontalAlignment="Center" VerticalAlignment="Top">
 
         <StackPanel Width="480" Spacing="32">
             <!-- Logo -->
@@ -160,4 +162,5 @@
             </StackPanel>
         </StackPanel>
     </Grid>
+    </ScrollViewer>
 </Page>
