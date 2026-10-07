@@ -138,6 +138,32 @@ jobs:
             throw "FAILED: no appx package produced - see tree dumps above"
           }
 
+      - name: Verify self-contained .NET runtime is packaged
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pkg = Get-ChildItem -Path "$env:RUNNER_TEMP/AppxPackages", "$env:GITHUB_WORKSPACE" -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in ".appx", ".appxbundle", ".msix", ".msixbundle" } |
+            Select-Object -First 1
+          if (-not $pkg) { throw "Cannot verify self-contained runtime: package not found." }
+
+          $expanded = Join-Path $env:RUNNER_TEMP "expanded-package"
+          if (Test-Path $expanded) { Remove-Item $expanded -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $expanded | Out-Null
+          Expand-Archive -LiteralPath $pkg.FullName -DestinationPath $expanded -Force
+
+          $runtimeNames = @("coreclr.dll", "hostfxr.dll", "System.Private.CoreLib.dll")
+          $runtimeFiles = Get-ChildItem $expanded -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $runtimeNames -contains $_.Name }
+          if (-not $runtimeFiles) {
+            Write-Host "Package does not contain the expected self-contained .NET runtime files."
+            Write-Host "Package: $($pkg.FullName)"
+            Get-ChildItem $expanded -Recurse -File | ForEach-Object { Write-Host $_.FullName }
+            throw "FAILED: generated package is framework-dependent; no bundled .NET runtime found."
+          }
+          Write-Host "Bundled .NET runtime files:"
+          $runtimeFiles | ForEach-Object { Write-Host $_.FullName }
+
       - name: Upload AppX artifact
         uses: actions/upload-artifact@v4
         with:
