@@ -25,15 +25,13 @@ public sealed partial class MediaDetailPage : Page
             await ViewModel.LoadAsync(itemId);
 
             // Load images
-            var api = App.Services.GetRequiredService<JellyfinClient.Services.JellyfinApiClient>();
-
             if (!string.IsNullOrEmpty(ViewModel.BackdropUrl))
                 BackdropImage.Source = new Windows.UI.Xaml.Media.Imaging.BitmapImage(
-                    new Uri($"{api.ServerUrl}{ViewModel.BackdropUrl}"));
+                    new Uri(ViewModel.BackdropUrl));
 
             if (!string.IsNullOrEmpty(ViewModel.PosterUrl))
                 PosterImage.Source = new Windows.UI.Xaml.Media.Imaging.BitmapImage(
-                    new Uri($"{api.ServerUrl}{ViewModel.PosterUrl}"));
+                    new Uri(ViewModel.PosterUrl));
         }
     }
 

@@ -94,7 +94,7 @@ public partial class MediaDetailViewModel : ObservableObject
         else CommunityRating = null;
 
         // Images
-        PosterUrl = _api.GetImageUrl(item.Id, "Primary");
+        PosterUrl = _api.GetItemImageUrl(item, "Primary", 720);
         var backdropId = item.BackdropImageTags.Count > 0 ? item.Id : item.ParentBackdropItemId;
         if (!string.IsNullOrEmpty(backdropId))
             BackdropUrl = _api.GetItemImageUrl(item, "Backdrop", 1920);
