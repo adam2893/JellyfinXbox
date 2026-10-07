@@ -976,18 +976,23 @@ public class JellyfinApiClient
         {
             var backdropId = item.BackdropImageTags?.Count > 0 ? item.Id : item.ParentBackdropItemId;
             if (!string.IsNullOrEmpty(backdropId))
-                return $"{ServerUrl}{GetBackdropUrl(backdropId, 0, maxWidth)}";
+            {
+                var backdropUrl = JellyfinEndpointBuilder.Combine(ServerUrl, GetBackdropUrl(backdropId, 0, maxWidth));
+                return JellyfinEndpointBuilder.WithQuery(backdropUrl, ("api_key", AccessToken));
+            }
             return null;
         }
 
-        return $"{ServerUrl}{GetImageUrl(itemId, imageType, maxWidth)}";
+        var url = JellyfinEndpointBuilder.Combine(ServerUrl, GetImageUrl(itemId, imageType, maxWidth));
+        return JellyfinEndpointBuilder.WithQuery(url, ("api_key", AccessToken));
     }
 
     public string? GetPersonProfileImageUrl(BaseItemPerson? person, int? maxWidth = null)
     {
         if (person == null || string.IsNullOrEmpty(ServerUrl) || string.IsNullOrEmpty(person.PrimaryImageTag))
             return null;
-        return $"{ServerUrl}{GetPersonImageUrl(person.Id, maxWidth)}";
+        var url = JellyfinEndpointBuilder.Combine(ServerUrl, GetPersonImageUrl(person.Id, maxWidth));
+        return JellyfinEndpointBuilder.WithQuery(url, ("api_key", AccessToken));
     }
 
     #endregion

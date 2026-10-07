@@ -117,7 +117,7 @@ public sealed partial class ShellPage : Page
                 _ => null
             };
 
-            if (targetType != null && ContentFrame.CurrentSourcePageType != targetType)
+            if (targetType != null)
             {
                 if (tag is "collections" or "playlists" or "favorites")
                     _nav.NavigateTo(targetType, tag);

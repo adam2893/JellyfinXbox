@@ -231,7 +231,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         var backdropId = item.BackdropImageTags.Count > 0 ? item.Id : item.ParentBackdropItemId;
         if (!string.IsNullOrEmpty(backdropId))
-            BackdropUrl = $"{_api.ServerUrl}{_api.GetBackdropUrl(backdropId, maxWidth: 1920)}";
+            BackdropUrl = _api.GetItemImageUrl(item, "Backdrop", 1920);
 
         // Use settings bitrate
         var maxBitrate = _api.Settings.MaxStreamingBitrate;
