@@ -170,7 +170,7 @@ public partial class App : Application
         try
         {
             var view = ApplicationView.GetForCurrentView();
-            view.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
+            ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
             view.FullScreenSystemOverlayMode = FullScreenSystemOverlayMode.Minimal;
             StartupDiagnostics.Stage("app.fullscreen-configured");
         }

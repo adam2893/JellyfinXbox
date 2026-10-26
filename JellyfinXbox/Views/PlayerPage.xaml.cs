@@ -87,8 +87,8 @@ public sealed partial class PlayerPage : Page
             // Attach synchronously while LoadAsync is still on the XAML/UI
             // thread. This prevents the source from being assigned before the
             // MediaPlayerElement owns the new native MediaPlayer.
-            player.IsFullWindow = true;
             PlayerElement.SetMediaPlayer(player);
+            PlayerElement.IsFullWindow = true;
             _diagnostics.Log("player-ui", "media-player-attached");
         }
         catch (Exception ex)
@@ -125,8 +125,8 @@ public sealed partial class PlayerPage : Page
         {
             try
             {
-                player.IsFullWindow = true;
                 PlayerElement.SetMediaPlayer(player);
+                PlayerElement.IsFullWindow = true;
                 _diagnostics.Log("player-ui", "existing-media-player-attached");
             }
             catch (Exception ex)
@@ -187,7 +187,7 @@ public sealed partial class PlayerPage : Page
         try
         {
             if (player != null)
-                player.IsFullWindow = false;
+                PlayerElement.IsFullWindow = false;
 
             PlayerElement.SetMediaPlayer(null!);
             _diagnostics.Log("player-ui", "media-player-detached");

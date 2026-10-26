@@ -1079,7 +1079,6 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _player = null;
         try
         {
-            player.IsFullWindow = false;
             player.Pause();
             player.Dispose();
         }
