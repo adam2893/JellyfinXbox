@@ -73,6 +73,15 @@ public class PersonToImageSourceConverter : IValueConverter
         => throw new NotImplementedException();
 }
 
+public class StringToImageSourceConverter : IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter, string language)
+        => ImageSourceFactory.Create(value as string);
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotImplementedException();
+}
+
 internal static class ImageSourceFactory
 {
     public static BitmapImage? Create(string? url)

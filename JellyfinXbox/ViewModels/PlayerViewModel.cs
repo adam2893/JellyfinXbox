@@ -392,24 +392,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     }
 
     private string BuildMediaUrl(string itemId, MediaSourceInfo source)
-    {
-        if (source.SupportsDirectPlay && !string.IsNullOrEmpty(source.DirectStreamUrl))
-            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.DirectStreamUrl), ("api_key", _api.AccessToken));
-
-        if (source.SupportsDirectStream)
-            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl($"Videos/{Uri.EscapeDataString(itemId)}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
-
-        if (!string.IsNullOrEmpty(source.TranscodingUrl))
-            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.TranscodingUrl), ("api_key", _api.AccessToken));
-
-        return JellyfinEndpointBuilder.WithQuery(CombineServerUrl($"Videos/{Uri.EscapeDataString(itemId)}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
-    }
-
-    private string CombineServerUrl(string path) =>
-        Uri.TryCreate(path, UriKind.Absolute, out var absolute) &&
-        (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps)
-            ? absolute.ToString()
-            : JellyfinEndpointBuilder.Combine(_api.ServerUrl, path);
+        => _api.BuildPlaybackUrl(itemId, source);
 
     private static string RedactPlaybackUrl(string url)
     {

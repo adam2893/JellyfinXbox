@@ -43,7 +43,15 @@ public partial class DebugViewModel : ObservableObject
         try
         {
             var results = await _api.RunSelfCheckAsync();
-            foreach (var r in results) Results.Add(r);
+            foreach (var r in results)
+            {
+                Results.Add(r);
+                _diagnostics.Log("diagnostics", "self-check-result",
+                    ("name", r.Name),
+                    ("ok", r.Ok),
+                    ("elapsedMs", r.ElapsedMs),
+                    ("detail", r.Detail));
+            }
             ReportText = BuildReport();
             RefreshLog();
         }

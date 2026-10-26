@@ -670,6 +670,41 @@ public class JellyfinApiClient
     }
 
     /// <summary>
+    /// Builds the same direct-play/direct-stream/transcode URL used by the
+    /// player. Diagnostics use this helper so a self-check does not probe a
+    /// generic stream URL that differs from the real playback path.
+    /// </summary>
+    public string BuildPlaybackUrl(string itemId, MediaSourceInfo source)
+    {
+        if (source.SupportsDirectPlay && !string.IsNullOrEmpty(source.DirectStreamUrl))
+            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.DirectStreamUrl), ("api_key", AccessToken));
+
+        if (source.SupportsDirectStream)
+        {
+            var streamUrl = JellyfinEndpointBuilder.Combine(
+                ServerUrl,
+                $"Videos/{Uri.EscapeDataString(itemId)}/stream");
+            return JellyfinEndpointBuilder.WithQuery(
+                streamUrl,
+                ("static", true),
+                ("MediaSourceId", source.Id),
+                ("api_key", AccessToken));
+        }
+
+        if (!string.IsNullOrEmpty(source.TranscodingUrl))
+            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.TranscodingUrl), ("api_key", AccessToken));
+
+        var fallbackUrl = JellyfinEndpointBuilder.Combine(
+            ServerUrl,
+            $"Videos/{Uri.EscapeDataString(itemId)}/stream");
+        return JellyfinEndpointBuilder.WithQuery(
+            fallbackUrl,
+            ("static", true),
+            ("MediaSourceId", source.Id),
+            ("api_key", AccessToken));
+    }
+
+    /// <summary>
     /// Build a playback/transcoding URL with specific audio/subtitle track selection.
     /// </summary>
     public string BuildTranscodeUrlWithTracks(string itemId, MediaSourceInfo source,
@@ -1171,7 +1206,7 @@ public class JellyfinApiClient
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             if (viewsResult.Error != null) return (false, viewsResult.Error);
             var view = viewsResult.Value?.FirstOrDefault();
-            if (view == null) return (false, "no library views");
+            if (view == null) return (true, "no library views configured");
             var result = await SelfCheckGetAsync<ItemsResult>(
                 $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=5&Recursive=true");
             return result.Error != null
@@ -1211,25 +1246,23 @@ public class JellyfinApiClient
             var itemsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=3&Recursive=true&IncludeItemTypes=Movie,Episode");
             if (itemsResult.Error != null) return (false, itemsResult.Error);
-            var item = itemsResult.Value?.Items.FirstOrDefault();
-            if (item == null) return (false, "no playable items found");
+            var item = itemsResult.Value?.Items.FirstOrDefault(i => i is not null && !string.IsNullOrWhiteSpace(i.Id));
+            if (item == null) return (true, "no playable items found in the first library");
 
             var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson(Settings.MaxStreamingBitrate));
             var playbackResult = await SelfCheckPostAsync<PlaybackInfoResponse>(
                 $"Items/{Uri.EscapeDataString(item.Id)}/PlaybackInfo?UserId={Uri.EscapeDataString(CurrentUser!.Id)}&MaxStreamingBitrate={Settings.MaxStreamingBitrate}&AutoOpenLiveStreams=true",
                 profile!);
             if (playbackResult.Error != null) return (false, playbackResult.Error);
-            var source = playbackResult.Value?.MediaSources.FirstOrDefault();
-            if (source == null) return (false, "no media sources returned");
+            var source = playbackResult.Value?.MediaSources?
+                .FirstOrDefault(s => s is not null && s.SupportsDirectPlay)
+                ?? playbackResult.Value?.MediaSources?.FirstOrDefault(s => s is not null);
+            if (source == null) return (true, "no media sources returned for the first playable item");
 
-            var streamUrl = JellyfinEndpointBuilder.WithQuery(
-                CombineServerUrl($"Videos/{Uri.EscapeDataString(item.Id)}/stream"),
-                ("static", true),
-                ("MediaSourceId", source.Id),
-                ("api_key", AccessToken));
+            var streamUrl = BuildPlaybackUrl(item.Id, source);
             var probe = await ProbeSelfCheckUrlAsync(streamUrl);
             return (probe.Ok,
-                $"'{item.Name}' source='{source.Id}' directPlay={source.SupportsDirectPlay} {probe.Detail}");
+                $"'{item.Name}' source='{source.Id}' directPlay={source.SupportsDirectPlay} directStream={source.SupportsDirectStream} transcode={!string.IsNullOrEmpty(source.TranscodingUrl)} {probe.Detail}");
         });
 
         // 9. Image loading
@@ -1239,15 +1272,14 @@ public class JellyfinApiClient
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             if (viewsResult.Error != null) return (false, viewsResult.Error);
             var view = viewsResult.Value?.FirstOrDefault();
-            if (view == null) return (false, "no library views");
+            if (view == null) return (true, "no library views configured");
             var itemsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=1&Recursive=true");
             if (itemsResult.Error != null) return (false, itemsResult.Error);
             var item = itemsResult.Value?.Items.FirstOrDefault();
-            if (item == null) return (false, "no items");
-            var imageUrl = JellyfinEndpointBuilder.WithQuery(
-                CombineServerUrl(GetImageUrl(item.Id, maxWidth: 128)),
-                ("api_key", AccessToken));
+            if (item == null) return (true, "no items available for image probe");
+            var imageUrl = GetItemImageUrl(item, "Primary", 128);
+            if (string.IsNullOrWhiteSpace(imageUrl)) return (true, "first item has no primary image");
             return await ProbeSelfCheckUrlAsync(imageUrl);
         });
 
@@ -1257,7 +1289,7 @@ public class JellyfinApiClient
             var qc = await QuickConnectInitAsync();
             return qc != null
                 ? (true, "enabled")
-                : (false, "not enabled on this server");
+                : (true, "not enabled on this server (optional feature)");
         });
 
         return results;

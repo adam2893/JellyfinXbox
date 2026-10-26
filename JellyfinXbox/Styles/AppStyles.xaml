@@ -16,6 +16,7 @@
     <converters:TicksToTimeSpanConverter x:Key="TicksToTimeSpanConverter" />
     <converters:ItemToImageSourceConverter x:Key="ItemImageConverter" />
     <converters:PersonToImageSourceConverter x:Key="PersonImageConverter" />
+    <converters:StringToImageSourceConverter x:Key="StringImageConverter" />
 
     <!-- ═══════════════════════════════════════ -->
     <!--         NAV RADIO BUTTON STYLE           -->

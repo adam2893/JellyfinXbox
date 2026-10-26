@@ -172,6 +172,27 @@ public sealed class ClientTests
     }
 
     [Fact]
+    public async Task PlaybackUrlUsesTheSourceProvidedByPlaybackInfo()
+    {
+        var handler = new RecordingHandler(_ => Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test/base");
+        await client.AuthenticateAsync("user", "password");
+
+        var url = client.BuildPlaybackUrl(
+            "item-1",
+            new MediaSourceInfo
+            {
+                SupportsDirectPlay = true,
+                DirectStreamUrl = "/Videos/item-1/master.m3u8?MediaSourceId=source-1"
+            });
+
+        Assert.Contains("/Videos/item-1/master.m3u8", url);
+        Assert.DoesNotContain("/Videos/item-1/stream", url);
+        Assert.Contains("api_key=token", url);
+    }
+
+    [Fact]
     public async Task DeviceIdIsPersistedAndSentInMediaBrowserHeader()
     {
         var store = new MemoryStore();

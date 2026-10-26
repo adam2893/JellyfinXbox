@@ -85,7 +85,8 @@
                     <Border Grid.Column="0" Width="90" Height="50" CornerRadius="6"
                             Background="#20FFFFFF" Margin="0 0 12 0"
                             Visibility="{x:Bind ViewModel.UpNextThumbnailUrl, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
-                        <Image Source="{x:Bind ViewModel.UpNextThumbnailUrl, Mode=OneWay}" Stretch="UniformToFill" />
+                        <Image Source="{x:Bind ViewModel.UpNextThumbnailUrl, Mode=OneWay, Converter={StaticResource StringImageConverter}}"
+                               Stretch="UniformToFill" />
                     </Border>
                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.UpNextTitle, Mode=OneWay}"
                                FontSize="15" FontWeight="SemiBold" Foreground="White"
@@ -114,7 +115,7 @@
                 CornerRadius="10" Padding="8">
             <StackPanel Spacing="6" HorizontalAlignment="Center">
                 <Border Width="240" Height="135" CornerRadius="6" Background="#20FFFFFF">
-                    <Image Source="{x:Bind ViewModel.TrickplayPreviewUrl, Mode=OneWay}"
+                    <Image Source="{x:Bind ViewModel.TrickplayPreviewUrl, Mode=OneWay, Converter={StaticResource StringImageConverter}}"
                            Stretch="UniformToFill" />
                 </Border>
                 <TextBlock Text="{x:Bind ViewModel.TrickplayTimeText, Mode=OneWay}"
