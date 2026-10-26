@@ -22,6 +22,7 @@ public sealed partial class DebugPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        ViewModel.RefreshLog();
         if (ViewModel.Results.Count == 0)
             ViewModel.RunCommand.Execute(null);
     }

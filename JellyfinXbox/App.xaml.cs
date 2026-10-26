@@ -26,6 +26,7 @@ public partial class App : Application
             StartupDiagnostics.Stage("app.resources");
             StartupDiagnostics.Stage("app.di");
             Services = ConfigureServices();
+            Services.GetRequiredService<DiagnosticsLogService>().BeginSession();
             Suspending += OnSuspending;
             StartupDiagnostics.Stage("app.focus-configuration");
             if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox")
@@ -38,7 +39,15 @@ public partial class App : Application
             StartupFailure = ex;
         }
 
-        UnhandledException += (_, e) => StartupDiagnostics.Exception("xaml.unhandled", e.Exception);
+        UnhandledException += (_, e) =>
+        {
+            StartupDiagnostics.Exception("xaml.unhandled", e.Exception);
+            try
+            {
+                Services?.GetService<DiagnosticsLogService>()?.LogException("app", "unhandled-exception", e.Exception);
+            }
+            catch { }
+        };
 
     }
 
@@ -47,6 +56,8 @@ public partial class App : Application
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
+
+        services.AddSingleton<DiagnosticsLogService>();
 
         // Session state persistence (server URL, token, user, settings).
         services.AddSingleton<ISessionStore, SessionStore>();
@@ -99,7 +110,8 @@ public partial class App : Application
             sp.GetRequiredService<NavigationService>()));
         services.AddTransient<PlayerViewModel>(sp => new PlayerViewModel(
             sp.GetRequiredService<JellyfinApiClient>(),
-            sp.GetRequiredService<NavigationService>()));
+            sp.GetRequiredService<NavigationService>(),
+            sp.GetRequiredService<DiagnosticsLogService>()));
         services.AddTransient<SearchViewModel>(sp => new SearchViewModel(
             sp.GetRequiredService<JellyfinApiClient>(),
             sp.GetRequiredService<NavigationService>()));
@@ -115,10 +127,12 @@ public partial class App : Application
             sp.GetRequiredService<JellyfinApiClient>(),
             sp.GetRequiredService<NavigationService>()));
         services.AddTransient<DebugViewModel>(sp => new DebugViewModel(
-            sp.GetRequiredService<JellyfinApiClient>()));
+            sp.GetRequiredService<JellyfinApiClient>(),
+            sp.GetRequiredService<DiagnosticsLogService>()));
 
         // Services
-        services.AddSingleton<NavigationService>(sp => new NavigationService());
+        services.AddSingleton<NavigationService>(sp => new NavigationService(
+            sp.GetRequiredService<DiagnosticsLogService>()));
 
         // Xbox controller input (poll-based; started by the Shell).
         services.AddSingleton<GamepadService>(sp => new GamepadService());

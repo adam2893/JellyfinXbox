@@ -3,7 +3,9 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Background="{StaticResource SurfacePrimaryBrush}">
+    <Grid HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch"
+          Background="{StaticResource SurfacePrimaryBrush}">
         <!-- Full-bleed cinematic backdrop. The shell hides its rail on this
              page, so the artwork owns the entire Xbox viewport. -->
         <Image x:Name="BackdropImage"

@@ -18,6 +18,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private readonly NavigationService _nav;
     private readonly TrackSelectionViewModel _trackSelection;
     private readonly DispatcherQueue _dispatcher;
+    private readonly DiagnosticsLogService _diagnostics;
 
     private MediaPlayer? _player;
     private Timer? _reportTimer;
@@ -89,10 +90,11 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     public TrackSelectionViewModel TrackSelection => _trackSelection;
 
-    public PlayerViewModel(JellyfinApiClient api, NavigationService nav)
+    public PlayerViewModel(JellyfinApiClient api, NavigationService nav, DiagnosticsLogService diagnostics)
     {
         _api = api;
         _nav = nav;
+        _diagnostics = diagnostics;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         _trackSelection = new TrackSelectionViewModel(api);
         _trackSelection.OnTracksChanged += OnTracksChanged;
@@ -111,6 +113,19 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     public async Task LoadAsync(string itemId, TimeSpan? startPosition = null)
     {
+        itemId = itemId?.Trim() ?? string.Empty;
+        _diagnostics.Log("player", "load-start",
+            ("itemId", DiagnosticsLogService.RedactId(itemId)),
+            ("startTicks", startPosition?.Ticks ?? 0));
+
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            PlaybackErrorMessage = "This item has no valid identifier.";
+            PlaybackStatusMessage = "Playback is unavailable.";
+            HasPlaybackError = true;
+            return;
+        }
+
         var generation = Interlocked.Increment(ref _loadGeneration);
         _loadCts?.Cancel();
         _loadCts?.Dispose();
@@ -127,9 +142,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         // Detach the old media instance before awaiting network work so late
         // events from it cannot update the newly requested item's state.
         DisposePlayer();
+        try
+        {
         var itemResult = await _api.GetItemResultAsync(itemId);
         if (loadCts.IsCancellationRequested || generation != _loadGeneration) return;
         var item = itemResult.Item;
+        _diagnostics.Log("player", "item-result",
+            ("itemId", DiagnosticsLogService.RedactId(itemId)),
+            ("found", item != null),
+            ("error", itemResult.Error?.GetType().Name ?? "none"),
+            ("server", _api.ServerUrl));
         if (item == null)
         {
             PlaybackErrorMessage = itemResult.Error?.Message ?? "This item could not be found.";
@@ -142,6 +164,10 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _currentItemId = itemId;
         _triedTranscodeFallback = false;
         Title = item.Name;
+        _diagnostics.Log("player", "item-ready",
+            ("itemId", DiagnosticsLogService.RedactId(itemId)),
+            ("itemType", item.Type),
+            ("title", item.Name));
 
         if (startPosition.HasValue && startPosition.Value > TimeSpan.Zero)
         {
@@ -174,8 +200,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         CurrentChapterName = "";
         if (item.Chapters != null && item.Chapters.Count > 0)
         {
-            foreach (var ch in item.Chapters) Chapters.Add(ch);
-            CurrentChapterName = Chapters[0].Name;
+            foreach (var ch in item.Chapters.Where(ch => ch is not null)) Chapters.Add(ch);
+            if (Chapters.Count > 0)
+                CurrentChapterName = Chapters[0].Name;
         }
 
         // Fetch intro timestamps in background
@@ -229,7 +256,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             Subtitle = item.ProductionYear.Value.ToString();
         }
 
-        var backdropId = item.BackdropImageTags.Count > 0 ? item.Id : item.ParentBackdropItemId;
+        var backdropId = item.BackdropImageTags?.Count > 0 ? item.Id : item.ParentBackdropItemId;
         if (!string.IsNullOrEmpty(backdropId))
             BackdropUrl = _api.GetItemImageUrl(item, "Backdrop", 1920);
 
@@ -239,6 +266,11 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         var playbackResult = await _api.GetPlaybackInfoResultAsync(itemId, maxBitrate);
         if (loadCts.IsCancellationRequested || generation != _loadGeneration) return;
         var playbackInfo = playbackResult.PlaybackInfo;
+        _diagnostics.Log("player", "playback-info-result",
+            ("itemId", DiagnosticsLogService.RedactId(itemId)),
+            ("sourceCount", playbackInfo?.MediaSources?.Count ?? 0),
+            ("error", playbackResult.Error?.GetType().Name ?? "none"),
+            ("bitrate", maxBitrate));
 
         if (playbackInfo?.MediaSources == null || playbackInfo.MediaSources.Count == 0)
         {
@@ -253,13 +285,24 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _currentMediaSource = source;
 
         var mediaUrl = BuildMediaUrl(itemId, source);
+        _diagnostics.Log("player", "source-selected",
+            ("itemId", DiagnosticsLogService.RedactId(itemId)),
+            ("source", source.Name),
+            ("directPlay", source.SupportsDirectPlay),
+            ("directStream", source.SupportsDirectStream),
+            ("transcoding", source.SupportsTranscoding),
+            ("container", source.Container),
+            ("url", mediaUrl));
         Debug.WriteLine($"[Player] Playing item {itemId} at {RedactPlaybackUrl(mediaUrl)}");
         Debug.WriteLine($"[Player] Source: {source.Name}, DirectPlay: {source.SupportsDirectPlay}, Container: {source.Container}");
 
         try
         {
             InitializePlayer();
-            _player!.Source = MediaSource.CreateFromUri(new Uri(mediaUrl));
+            if (!Uri.TryCreate(mediaUrl, UriKind.Absolute, out var mediaUri) ||
+                (mediaUri.Scheme != Uri.UriSchemeHttp && mediaUri.Scheme != Uri.UriSchemeHttps))
+                throw new InvalidOperationException("The server returned an invalid playback URL.");
+            _player!.Source = MediaSource.CreateFromUri(mediaUri);
         }
         catch (Exception ex)
         {
@@ -275,15 +318,34 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _ = _api.ReportPlaybackStartAsync(itemId);
 
         _reportTimer = new Timer(async _ => await ReportProgress(itemId, generation), null, 5000, 10000);
+        _diagnostics.Log("player", "load-source-attached", ("itemId", DiagnosticsLogService.RedactId(itemId)));
+        }
+        catch (OperationCanceledException) when (loadCts.IsCancellationRequested)
+        {
+            _diagnostics.Log("player", "load-cancelled", ("itemId", DiagnosticsLogService.RedactId(itemId)));
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player", "load-failed", ex, ("itemId", DiagnosticsLogService.RedactId(itemId)));
+            IsBuffering = false;
+            IsPlaying = false;
+            PlaybackStatusMessage = "Playback setup failed.";
+            PlaybackErrorMessage = "Playback setup failed. Open Diagnostics and share the log if this repeats.";
+            HasPlaybackError = true;
+        }
     }
 
     private MediaSourceInfo SelectMediaSource(List<MediaSourceInfo> sources)
     {
-        var directPlay = sources
+        var validSources = sources.Where(s => s is not null).ToList();
+        if (validSources.Count == 0)
+            throw new InvalidOperationException("The server returned no usable media sources.");
+
+        var directPlay = validSources
             .Where(s => s.SupportsDirectPlay)
             .OrderByDescending(s =>
             {
-                var video = s.MediaStreams.FirstOrDefault(ms => ms.Type == "Video");
+                var video = (s.MediaStreams ?? new()).FirstOrDefault(ms => ms is not null && ms.Type == "Video");
                 return video?.Codec switch
                 {
                     "av1" => 3, "hevc" or "h265" => 2, "h264" or "avc" => 1, _ => 0
@@ -298,7 +360,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             return directPlay;
         }
 
-        var transcode = sources.OrderByDescending(s => s.SupportsTranscoding).FirstOrDefault() ?? sources.First();
+        var transcode = validSources.OrderByDescending(s => s.SupportsTranscoding).FirstOrDefault() ?? validSources[0];
         IsDirectPlay = false;
         UpdateCodecInfo(transcode);
         return transcode;
@@ -306,8 +368,13 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private void UpdateCodecInfo(MediaSourceInfo source)
     {
-        var video = source.MediaStreams.FirstOrDefault(ms => ms.Type == "Video");
-        var audio = source.MediaStreams.FirstOrDefault(ms => ms.Type == "Audio");
+        CurrentVideoCodec = "";
+        CurrentAudioCodec = "";
+        CurrentResolution = "";
+        IsHdr = false;
+        var streams = source.MediaStreams ?? new();
+        var video = streams.FirstOrDefault(ms => ms is not null && ms.Type == "Video");
+        var audio = streams.FirstOrDefault(ms => ms is not null && ms.Type == "Audio");
 
         if (video != null)
         {
@@ -367,10 +434,34 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             audio?.Index,
             subtitle?.Index);
 
+        _diagnostics.Log("player", "track-switch",
+            ("audio", audio?.DisplayTitle ?? "default"),
+            ("subtitle", subtitle?.DisplayTitle ?? "off"),
+            ("url", newUrl));
         Debug.WriteLine($"[Player] Switching tracks — Audio: {audio?.DisplayTitle ?? "default"}, Sub: {subtitle?.DisplayTitle ?? "off"}");
 
-        // Re-create source with track selection
-        _player.Source = MediaSource.CreateFromUri(new Uri(newUrl));
+        // Re-create source with track selection. Keep this guarded because a
+        // malformed server URL must become a readable playback error.
+        if (!Uri.TryCreate(newUrl, UriKind.Absolute, out var trackUri) ||
+            (trackUri.Scheme != Uri.UriSchemeHttp && trackUri.Scheme != Uri.UriSchemeHttps))
+        {
+            SetPlaybackFailureOnUi("The server returned an invalid track-switch URL.");
+            return;
+        }
+
+        _dispatcher.TryEnqueue(() =>
+        {
+            try
+            {
+                if (_player != null)
+                    _player.Source = MediaSource.CreateFromUri(trackUri);
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.LogException("player", "track-switch-failed", ex);
+                SetPlaybackFailureOnUi("The selected track could not be started.");
+            }
+        });
 
         // Seek back to current position
         var seekTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -416,6 +507,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private void Player_MediaOpened(MediaPlayer sender, object args)
     {
         if (!ReferenceEquals(sender, _player)) return;
+        _diagnostics.Log("player", "media-opened",
+            ("itemId", DiagnosticsLogService.RedactId(_currentItemId)),
+            ("video", $"{sender.PlaybackSession.NaturalVideoWidth}x{sender.PlaybackSession.NaturalVideoHeight}"));
         _dispatcher.TryEnqueue(() =>
         {
             Duration = sender.PlaybackSession.NaturalDuration;
@@ -444,6 +538,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _dispatcher.TryEnqueue(() =>
         {
             var state = sender.PlaybackState;
+            _diagnostics.Log("player", "state-changed", ("state", state));
             IsPlaying = state == MediaPlaybackState.Playing;
             IsBuffering = state == MediaPlaybackState.Buffering;
         });
@@ -574,6 +669,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private async void Player_MediaEnded(MediaPlayer sender, object args)
     {
         if (!ReferenceEquals(sender, _player)) return;
+        _diagnostics.Log("player", "media-ended", ("itemId", DiagnosticsLogService.RedactId(_currentItemId)));
         Debug.WriteLine("[Player] Media ended.");
         IsPlaying = false;
 
@@ -597,28 +693,78 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private async void Player_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
     {
         if (!ReferenceEquals(sender, _player)) return;
-        Debug.WriteLine($"[Player] Failed: {args.Error}, Extended: {args.ExtendedErrorCode}");
+        try
+        {
+            _diagnostics.Log("player", "media-failed",
+                ("itemId", DiagnosticsLogService.RedactId(_currentItemId)),
+                ("error", args.Error),
+                ("extended", args.ExtendedErrorCode));
+            Debug.WriteLine($"[Player] Failed: {args.Error}, Extended: {args.ExtendedErrorCode}");
+            SetPlaybackStateOnUi(isBuffering: false, isPlaying: false);
+
+            if (_currentItemId == null || _currentMediaSource == null) return;
+
+            if (!_triedTranscodeFallback && !string.IsNullOrEmpty(_currentMediaSource.TranscodingUrl))
+            {
+                _triedTranscodeFallback = true;
+                IsDirectPlay = false;
+                SetPlaybackStateOnUi(isBuffering: true, isPlaying: false);
+                Debug.WriteLine("[Player] Direct play failed - retrying with transcode");
+                _diagnostics.Log("player", "transcode-fallback");
+
+                var url = _api.BuildTranscodeUrlWithTracks(_currentItemId, _currentMediaSource);
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var transcodeUri) ||
+                    (transcodeUri.Scheme != Uri.UriSchemeHttp && transcodeUri.Scheme != Uri.UriSchemeHttps))
+                {
+                    SetPlaybackFailureOnUi("The server returned an invalid transcode URL.");
+                    return;
+                }
+
+                _dispatcher.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        if (_player != null)
+                            _player.Source = MediaSource.CreateFromUri(transcodeUri);
+                    }
+                    catch (Exception ex)
+                    {
+                        _diagnostics.LogException("player", "transcode-attach-failed", ex);
+                        SetPlaybackFailureOnUi("The transcode stream could not be started.");
+                    }
+                });
+                return;
+            }
+
+            await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
+            SetPlaybackFailureOnUi("Playback stopped unexpectedly. Retry or go back and try another source.");
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player", "media-failed-handler-crashed", ex);
+            SetPlaybackFailureOnUi("Playback stopped unexpectedly. Open Diagnostics and share the log.");
+        }
+    }
+
+    private void SetPlaybackStateOnUi(bool isBuffering, bool isPlaying)
+    {
+        _dispatcher.TryEnqueue(() =>
+        {
+            IsBuffering = isBuffering;
+            IsPlaying = isPlaying;
+        });
+    }
+
+    private void SetPlaybackFailureOnUi(string message)
+    {
+        _dispatcher.TryEnqueue(() =>
+        {
             IsBuffering = false;
             IsPlaying = false;
-
-        if (_currentItemId == null || _currentMediaSource == null) return;
-
-        if (!_triedTranscodeFallback && !string.IsNullOrEmpty(_currentMediaSource.TranscodingUrl))
-        {
-            _triedTranscodeFallback = true;
-            IsDirectPlay = false;
-            IsBuffering = true;
-            Debug.WriteLine("[Player] Direct play failed - retrying with transcode");
-
-            var url = _api.BuildTranscodeUrlWithTracks(_currentItemId, _currentMediaSource);
-            _player!.Source = MediaSource.CreateFromUri(new Uri(url));
-            return;
-        }
-
-        await _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
-        PlaybackErrorMessage = "Playback stopped unexpectedly. Retry or go back and try another source.";
-        PlaybackStatusMessage = "Playback stopped unexpectedly.";
-        HasPlaybackError = true;
+            PlaybackErrorMessage = message;
+            PlaybackStatusMessage = message;
+            HasPlaybackError = true;
+        });
     }
 
     [RelayCommand]
@@ -650,39 +796,73 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void TogglePlayPause()
     {
-        if (_player?.PlaybackSession == null) return;
-        if (_player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
-            _player.Pause();
-        else
-            _player.Play();
+        try
+        {
+            if (_player?.PlaybackSession == null)
+            {
+                _diagnostics.Log("player", "toggle-ignored", ("reason", "no-player"));
+                return;
+            }
+
+            var wasPlaying = _player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
+            _diagnostics.Log("player", "toggle-play", ("action", wasPlaying ? "pause" : "play"));
+            if (wasPlaying) _player.Pause();
+            else _player.Play();
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player", "toggle-play-failed", ex);
+            SetPlaybackFailureOnUi("The player could not change state.");
+        }
     }
 
     [RelayCommand]
     private void SeekForward()
     {
-        if (_player?.PlaybackSession != null)
-            _player.PlaybackSession.Position = Duration > TimeSpan.Zero && _player.PlaybackSession.Position + TimeSpan.FromSeconds(10) > Duration ? Duration : _player.PlaybackSession.Position + TimeSpan.FromSeconds(10);
+        try
+        {
+            if (_player?.PlaybackSession != null)
+            {
+                _diagnostics.Log("player", "seek", ("direction", "forward"));
+                _player.PlaybackSession.Position = Duration > TimeSpan.Zero && _player.PlaybackSession.Position + TimeSpan.FromSeconds(10) > Duration ? Duration : _player.PlaybackSession.Position + TimeSpan.FromSeconds(10);
+            }
+        }
+        catch (Exception ex) { _diagnostics.LogException("player", "seek-forward-failed", ex); }
     }
 
     [RelayCommand]
     private void SeekBackward()
     {
-        if (_player?.PlaybackSession != null)
+        try
         {
-            var newPos = _player.PlaybackSession.Position - TimeSpan.FromSeconds(10);
-            _player.PlaybackSession.Position = newPos < TimeSpan.Zero ? TimeSpan.Zero : newPos;
+            if (_player?.PlaybackSession != null)
+            {
+                _diagnostics.Log("player", "seek", ("direction", "backward"));
+                var newPos = _player.PlaybackSession.Position - TimeSpan.FromSeconds(10);
+                _player.PlaybackSession.Position = newPos < TimeSpan.Zero ? TimeSpan.Zero : newPos;
+            }
         }
+        catch (Exception ex) { _diagnostics.LogException("player", "seek-backward-failed", ex); }
     }
 
     [RelayCommand]
     private void SeekTo(TimeSpan position)
     {
-        if (_player?.PlaybackSession != null) _player.PlaybackSession.Position = Duration > TimeSpan.Zero ? (position < TimeSpan.Zero ? TimeSpan.Zero : position > Duration ? Duration : position) : (position < TimeSpan.Zero ? TimeSpan.Zero : position);
+        try
+        {
+            if (_player?.PlaybackSession != null)
+            {
+                _diagnostics.Log("player", "seek-to", ("seconds", position.TotalSeconds));
+                _player.PlaybackSession.Position = Duration > TimeSpan.Zero ? (position < TimeSpan.Zero ? TimeSpan.Zero : position > Duration ? Duration : position) : (position < TimeSpan.Zero ? TimeSpan.Zero : position);
+            }
+        }
+        catch (Exception ex) { _diagnostics.LogException("player", "seek-to-failed", ex); }
     }
 
     [RelayCommand]
     private void Stop()
     {
+        _diagnostics.Log("player", "stop");
         if (_currentItemId != null && _player?.PlaybackSession != null)
             _ = _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
         _player?.Pause();
@@ -746,10 +926,15 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     {
         PlaybackSpeed = speed;
         PlaybackSpeedDisplay = $"{speed:0.##}×";
-        if (_player?.PlaybackSession != null)
+        try
         {
-            _player.PlaybackSession.PlaybackRate = speed;
+            if (_player?.PlaybackSession != null)
+            {
+                _diagnostics.Log("player", "speed-change", ("speed", speed));
+                _player.PlaybackSession.PlaybackRate = speed;
+            }
         }
+        catch (Exception ex) { _diagnostics.LogException("player", "speed-change-failed", ex); }
     }
 
     [RelayCommand]

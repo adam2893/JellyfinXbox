@@ -13,6 +13,7 @@ public sealed partial class PlayerPage : Page
 {
     public PlayerViewModel ViewModel { get; }
     private readonly GamepadService _gamepad;
+    private readonly DiagnosticsLogService _diagnostics;
     private DispatcherTimer? _hideTimer;
 
     // Stored as fields so += / -= in OnNavigatedTo/From match exactly.
@@ -26,6 +27,7 @@ public sealed partial class PlayerPage : Page
     {
         ViewModel = App.Services.GetRequiredService<PlayerViewModel>();
         _gamepad = App.Services.GetRequiredService<GamepadService>();
+        _diagnostics = App.Services.GetRequiredService<DiagnosticsLogService>();
         _viewPressedHandler = () => ToggleTrackPanel_Click(this, null!);
         _aPressedHandler = () =>
         {
@@ -47,11 +49,13 @@ public sealed partial class PlayerPage : Page
         };
         _xPressedHandler = () =>
         {
+            _diagnostics.Log("player-ui", "gamepad-x");
             ViewModel.TrackSelection.ToggleSubtitlesCommand.Execute(null);
             ShowTransport();
         };
         _yPressedHandler = () =>
         {
+            _diagnostics.Log("player-ui", "gamepad-y");
             if (ViewModel.ShowSkipPrompt)
             {
                 ViewModel.SkipIntroCommand.Execute(null);
@@ -76,13 +80,24 @@ public sealed partial class PlayerPage : Page
     {
         _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
         {
-            PlayerElement.SetMediaPlayer(player);
+            try
+            {
+                PlayerElement.SetMediaPlayer(player);
+                _diagnostics.Log("player-ui", "media-player-attached");
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.LogException("player-ui", "media-player-attach-failed", ex);
+                ViewModel.HasPlaybackError = true;
+                ViewModel.PlaybackErrorMessage = "The Xbox media surface could not be initialized.";
+            }
         });
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _diagnostics.Log("player-ui", "navigated-to", ("parameterType", e.Parameter?.GetType().Name ?? "none"));
 
         // Controller shortcuts (D-pad focus + A activation are native):
         //   Right/Left trigger → seek; View → track panel; A → play/pause;
@@ -100,21 +115,47 @@ public sealed partial class PlayerPage : Page
         ViewModel.PlayerInitialized += OnPlayerInitialized;
         var player = ViewModel.Player;
         if (player != null)
-            PlayerElement.SetMediaPlayer(player);
-
-        if (e.Parameter is string itemId)
         {
-            await ViewModel.LoadAsync(itemId);
+            try
+            {
+                PlayerElement.SetMediaPlayer(player);
+                _diagnostics.Log("player-ui", "existing-media-player-attached");
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.LogException("player-ui", "existing-media-player-attach-failed", ex);
+            }
         }
-        else if (e.Parameter is ValueTuple<string, long?> tuple)
+
+        try
         {
-            var startPos = tuple.Item2.HasValue ? TimeSpan.FromTicks(tuple.Item2.Value) : (TimeSpan?)null;
-            await ViewModel.LoadAsync(tuple.Item1, startPos);
+            if (e.Parameter is string itemId)
+            {
+                await ViewModel.LoadAsync(itemId);
+            }
+            else if (e.Parameter is ValueTuple<string, long?> tuple)
+            {
+                var startPos = tuple.Item2.HasValue ? TimeSpan.FromTicks(tuple.Item2.Value) : (TimeSpan?)null;
+                await ViewModel.LoadAsync(tuple.Item1, startPos);
+            }
+            else
+            {
+                _diagnostics.Log("player-ui", "load-ignored", ("reason", "invalid-parameter"));
+                ViewModel.HasPlaybackError = true;
+                ViewModel.PlaybackErrorMessage = "No playable item was supplied.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player-ui", "navigated-to-failed", ex);
+            ViewModel.HasPlaybackError = true;
+            ViewModel.PlaybackErrorMessage = "The player failed before playback could start. Open Diagnostics and share the log.";
         }
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        _diagnostics.Log("player-ui", "navigated-from");
         base.OnNavigatedFrom(e);
         ViewModel.PlayerInitialized -= OnPlayerInitialized;
         _gamepad.OnRightTrigger -= OnRightTrigger;
@@ -161,8 +202,10 @@ public sealed partial class PlayerPage : Page
 
     private void PlayPause_Click(object sender, RoutedEventArgs e)
     {
+        _diagnostics.Log("player-ui", "play-pause-click");
         ViewModel.TogglePlayPauseCommand.Execute(null);
-        PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
+        if (PlayPauseIcon != null)
+            PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
         ShowTransport();
     }
 
@@ -170,12 +213,17 @@ public sealed partial class PlayerPage : Page
     private void SeekBack_Click(object sender, RoutedEventArgs e) { ViewModel.SeekBackwardCommand.Execute(null); ShowTransport(); }
     private void Rewind_Click(object sender, RoutedEventArgs e) { ViewModel.SeekBackwardCommand.Execute(null); ViewModel.SeekBackwardCommand.Execute(null); ShowTransport(); }
     private void Forward_Click(object sender, RoutedEventArgs e) { ViewModel.SeekForwardCommand.Execute(null); ViewModel.SeekForwardCommand.Execute(null); ShowTransport(); }
-    private void Back_Click(object sender, RoutedEventArgs e) => ViewModel.StopCommand.Execute(null);
+    private void Back_Click(object sender, RoutedEventArgs e)
+    {
+        _diagnostics.Log("player-ui", "back-click");
+        ViewModel.StopCommand.Execute(null);
+    }
 
     // ═══ Track Selection ═══
 
     private void ToggleTrackPanel_Click(object sender, RoutedEventArgs e)
     {
+        _diagnostics.Log("player-ui", "track-panel-toggle");
         ViewModel.TrackSelection.ToggleVisibilityCommand.Execute(null);
     }
 

@@ -155,6 +155,23 @@ public sealed class ClientTests
     }
 
     [Fact]
+    public async Task PlaybackInfoRequestsEscapeItemIds()
+    {
+        var handler = new RecordingHandler(request =>
+            request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+                ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+                : Json("{\"MediaSources\":[]}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+
+        await client.GetPlaybackInfoResultAsync("item / one");
+
+        var escapedPath = handler.LastRequest!.RequestUri!.GetComponents(UriComponents.Path, UriFormat.UriEscaped);
+        Assert.Contains("Items/item%20%2F%20one/PlaybackInfo", escapedPath);
+    }
+
+    [Fact]
     public async Task DeviceIdIsPersistedAndSentInMediaBrowserHeader()
     {
         var store = new MemoryStore();

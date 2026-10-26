@@ -47,14 +47,34 @@
                                Foreground="{StaticResource AccentBrush}" />
 
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Support report (local only)" FontSize="18" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="Copy a local report for support. Nothing is uploaded automatically; review server and media details before sharing."
-                               Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                    <Button Content="Copy diagnostic report" Command="{x:Bind ViewModel.CopyReportCommand}"
-                            Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
+                     <TextBlock Text="Temporary developer diagnostics" FontSize="18" FontWeight="SemiBold"
+                                Foreground="{StaticResource TextPrimaryBrush}" />
+                     <TextBlock Text="This build records a detailed local event log for development. Nothing is uploaded automatically. Reproduce the problem, return here, and copy the full event log."
+                                Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                     <StackPanel Orientation="Horizontal" Spacing="10">
+                         <Button Content="Copy diagnostic report" Command="{x:Bind ViewModel.CopyReportCommand}"
+                                 Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
+                         <Button Content="Copy full event log" Command="{x:Bind ViewModel.CopyLogCommand}"
+                                 Style="{StaticResource SecondaryButtonStyle}" HorizontalAlignment="Left" />
+                         <Button Content="Clear log" Command="{x:Bind ViewModel.ClearLogCommand}"
+                                 Style="{StaticResource SecondaryButtonStyle}" HorizontalAlignment="Left" />
+                     </StackPanel>
+                     <TextBlock Text="{x:Bind ViewModel.LogStatus, Mode=OneWay}"
+                                Foreground="{StaticResource SuccessBrush}"
+                                TextWrapping="Wrap" />
+                     <TextBlock Text="{x:Bind ViewModel.LogPathLabel}"
+                                Foreground="{StaticResource TextMutedBrush}"
+                                TextWrapping="Wrap" />
+                     <TextBox Text="{x:Bind ViewModel.LogText, Mode=OneWay}"
+                              IsReadOnly="True"
+                              AcceptsReturn="True"
+                              TextWrapping="Wrap"
+                              MaxHeight="360"
+                              FontSize="12"
+                              Background="{StaticResource SurfaceSecondaryBrush}"
+                              Foreground="{StaticResource TextSecondaryBrush}" />
                      <TextBlock Text="{x:Bind ViewModel.VersionLabel, Mode=OneWay}"
-                               Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
+                                Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Results -->

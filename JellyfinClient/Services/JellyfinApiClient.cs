@@ -559,7 +559,7 @@ public class JellyfinApiClient
     public async Task<PlaybackInfoResponse?> GetPlaybackInfoAsync(string itemId, long maxBitrate = 120_000_000)
     {
         if (CurrentUser == null) return null;
-        var url = $"Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
+        var url = $"Items/{Uri.EscapeDataString(itemId)}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
 
         // Include audio/subtitle preferences from settings
         if (!string.IsNullOrEmpty(Settings.PreferredAudioLanguage))
@@ -586,7 +586,7 @@ public class JellyfinApiClient
         try
         {
             var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson(maxBitrate));
-            var url = $"Items/{itemId}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
+            var url = $"Items/{Uri.EscapeDataString(itemId)}/PlaybackInfo?UserId={CurrentUser.Id}&MaxStreamingBitrate={maxBitrate}&AutoOpenLiveStreams=true";
             var response = await _http.PostAsJsonAsync(url, profile, _jsonOpts);
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<PlaybackInfoResponse>(_jsonOpts), null);

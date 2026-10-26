@@ -22,6 +22,7 @@ A beautiful, fast **Jellyfin client** built natively for Xbox Series X/S with **
 - **Search** — Real-time search across your library
 - **Switch User** — Profile switching from Settings (returns to the public-user picker)
 - **API Self-Check** — On-device diagnostics that probe every Jellyfin endpoint the app uses
+- **Temporary developer event log** — Local playback/navigation log available from Settings → API Self-Check; nothing is uploaded automatically
 - **Per-Server TLS Trust** — Self-signed server certificates are accepted only after you explicitly trust them (persisted by thumbprint)
 
 ## 🎮 Controls

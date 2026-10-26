@@ -25,6 +25,8 @@ If you explicitly accept a self-signed certificate, XboxJellyfish records the ce
 
 XboxJellyfish does not include a required analytics or advertising service. If you contact maintainers, you may choose to provide logs, screenshots, device details, or server-version information. Please redact tokens, passwords, private server URLs, IP addresses, and personal data before sharing diagnostics.
 
+Development builds may also keep a temporary, local-only event log for playback and navigation debugging. It is not uploaded automatically; use the API Self-Check screen to review or copy it before sharing.
+
 ## Children
 
 XboxJellyfish is not directed at children and does not knowingly collect information from children.
