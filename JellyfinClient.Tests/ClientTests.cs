@@ -90,6 +90,94 @@ public sealed class ClientTests
         Assert.Contains("Filters=Movie%2CEpisode", query);
     }
 
+    [Fact]
+    public async Task SwitchingServersClearsThePreviousSession()
+    {
+        var store = new MemoryStore();
+        var handler = new RecordingHandler(request =>
+            request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+                ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+                : Json("{}"));
+        var client = NewClient(handler, store);
+
+        client.SetServerUrl("https://first.example");
+        Assert.NotNull(await client.AuthenticateAsync("user", "password"));
+        Assert.True(client.IsAuthenticated);
+
+        client.SetServerUrl("https://second.example");
+
+        Assert.False(client.IsAuthenticated);
+        Assert.Equal("https://second.example", client.ServerUrl);
+        Assert.Null(store.Get("session.accessToken"));
+        Assert.Null(store.Get("session.currentUser"));
+    }
+
+    [Fact]
+    public async Task QuickConnectPollUsesTheClientSecretEndpoint()
+    {
+        var handler = new RecordingHandler(_ => Json("{\"Authenticated\":true,\"Secret\":\"authorized\"}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+
+        var result = await client.QuickConnectCheckAuthAsync("poll secret");
+
+        Assert.NotNull(result);
+        Assert.True(result!.Authenticated);
+        Assert.Equal("/QuickConnect/Connect", handler.LastRequest!.RequestUri!.AbsolutePath);
+        Assert.Contains("Secret=poll%20secret", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task DeviceIdIsPersistedAndSentInMediaBrowserHeader()
+    {
+        var store = new MemoryStore();
+        var handler = new RecordingHandler(request =>
+            request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+                ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+                : Json("{}"));
+        var client = NewClient(handler, store);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+
+        var deviceId = client.DeviceId;
+        Assert.StartsWith("XboxJellyfish-", deviceId);
+        Assert.Equal(deviceId, store.Get("session.deviceId"));
+        Assert.Contains($"DeviceId=\"{deviceId}\"", handler.LastRequest!.Headers.Authorization!.Parameter);
+    }
+
+    [Fact]
+    public void InvalidServerUrlIsRejectedBeforeNetworkUse()
+    {
+        var client = NewClient(new RecordingHandler(_ => Json("{}")));
+
+        Assert.Throws<ArgumentException>(() => client.SetServerUrl("not a URL"));
+    }
+
+    [Fact]
+    public async Task TranscodeUrlEscapesAndReplacesTrackParametersSafely()
+    {
+        var handler = new RecordingHandler(_ => Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test/base");
+        await client.AuthenticateAsync("user", "password");
+
+        var url = client.BuildTranscodeUrlWithTracks(
+            "item/one",
+            new MediaSourceInfo
+            {
+                Id = "source 1",
+                TranscodingUrl = "/Videos/item/master.m3u8?MediaSourceId=source%201"
+            },
+            audioIndex: 2,
+            subtitleIndex: -1);
+
+        Assert.StartsWith("https://example.test/base/Videos/item/master.m3u8?", url);
+        Assert.Contains("AudioStreamIndex=2", url);
+        Assert.Contains("SubtitleStreamIndex=-1", url);
+        Assert.Contains("api_key=token", url);
+        Assert.DoesNotContain("&&", url);
+    }
+
     private static JellyfinApiClient NewClient(HttpMessageHandler handler, ISessionStore? store = null) =>
         new(new HttpClient(handler), store);
 
@@ -99,9 +187,11 @@ public sealed class ClientTests
     private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         public HttpRequestMessage? LastRequest { get; private set; }
+        public List<HttpRequestMessage> Requests { get; } = new();
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequest = request;
+            Requests.Add(request);
             return Task.FromResult(responder(request));
         }
     }

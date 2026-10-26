@@ -16,7 +16,6 @@ public sealed class CertificateTrustService
     private readonly ISessionStore _store;
     private readonly ConcurrentDictionary<string, byte> _trusted = new(StringComparer.OrdinalIgnoreCase);
     private int _promptInFlight;
-    private string? _lastRejectedHost;
 
     public CertificateTrustService(ISessionStore store)
     {
@@ -40,11 +39,6 @@ public sealed class CertificateTrustService
     public bool IsTrusted(string host, string thumbprint) =>
         _trusted.ContainsKey(Key(host, thumbprint));
 
-    public void AddTrusted(string thumbprint)
-    {
-        AddTrusted(_lastRejectedHost ?? "", thumbprint);
-    }
-
     public void AddTrusted(string host, string thumbprint)
     {
         _trusted[Key(host, thumbprint)] = 0;
@@ -64,7 +58,6 @@ public sealed class CertificateTrustService
     /// parallel requests for the same server don't stack dialogs.</summary>
     public void ReportRejection(string host, string thumbprint, string issuer)
     {
-        _lastRejectedHost = host;
         if (Interlocked.CompareExchange(ref _promptInFlight, 1, 0) != 0) return;
         CertificateRejected?.Invoke(host, thumbprint, issuer);
     }

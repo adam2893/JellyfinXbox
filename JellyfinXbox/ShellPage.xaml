@@ -41,18 +41,28 @@
                     <RadioButton x:Name="NavHome"
                                  Tag="home"
                                  Style="{StaticResource NavRadioButtonStyle}"
-                                 Content="&#xE80F;"
-                                 Click="NavButton_Click" />
+                                 AutomationProperties.Name="Home"
+                                 Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE80F;" FontSize="24" />
+                    </RadioButton>
 
                     <!-- Search -->
                     <RadioButton x:Name="NavSearch"
                                  Tag="search"
                                  Style="{StaticResource NavRadioButtonStyle}"
-                                 Content="&#xE721;"
-                                  Click="NavButton_Click" />
-                    <RadioButton x:Name="NavCollections" Tag="collections" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE8A4;" Click="NavButton_Click" />
-                    <RadioButton x:Name="NavPlaylists" Tag="playlists" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE8A5;" Click="NavButton_Click" />
-                    <RadioButton x:Name="NavFavorites" Tag="favorites" Style="{StaticResource NavRadioButtonStyle}" Content="&#xE734;" Click="NavButton_Click" />
+                                 AutomationProperties.Name="Search"
+                                 Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE721;" FontSize="24" />
+                    </RadioButton>
+                    <RadioButton x:Name="NavCollections" Tag="collections" Style="{StaticResource NavRadioButtonStyle}" AutomationProperties.Name="Collections" Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE8A4;" FontSize="24" />
+                    </RadioButton>
+                    <RadioButton x:Name="NavPlaylists" Tag="playlists" Style="{StaticResource NavRadioButtonStyle}" AutomationProperties.Name="Playlists" Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE8A5;" FontSize="24" />
+                    </RadioButton>
+                    <RadioButton x:Name="NavFavorites" Tag="favorites" Style="{StaticResource NavRadioButtonStyle}" AutomationProperties.Name="Favorites" Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE734;" FontSize="24" />
+                    </RadioButton>
                 </StackPanel>
 
                 <!-- Bottom nav items -->
@@ -62,15 +72,19 @@
                     <RadioButton x:Name="NavQuickConnect"
                                  Tag="quickconnect"
                                  Style="{StaticResource NavRadioButtonStyle}"
-                                 Content="&#xE8BD;"
-                                 Click="NavButton_Click" />
+                                 AutomationProperties.Name="Quick Connect"
+                                 Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE8BD;" FontSize="24" />
+                    </RadioButton>
 
                     <!-- Settings -->
                     <RadioButton x:Name="NavSettings"
                                  Tag="settings"
                                  Style="{StaticResource NavRadioButtonStyle}"
-                                 Content="&#xE713;"
-                                 Click="NavButton_Click" />
+                                 AutomationProperties.Name="Settings"
+                                 Click="NavButton_Click">
+                        <FontIcon Glyph="&#xE713;" FontSize="24" />
+                    </RadioButton>
                 </StackPanel>
             </Grid>
         </Border>

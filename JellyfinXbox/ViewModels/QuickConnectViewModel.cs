@@ -31,6 +31,8 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task StartQuickConnectAsync()
     {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
         IsActive = true;
         IsSuccess = false;
         IsError = false;
@@ -39,7 +41,8 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
 
         // Init Quick Connect
         var initResult = await _api.QuickConnectInitAsync();
-        if (initResult == null)
+        if (!IsActive) return;
+        if (initResult == null || string.IsNullOrWhiteSpace(initResult.Secret) || string.IsNullOrWhiteSpace(initResult.Code))
         {
             IsError = true;
             ErrorMessage = "Quick Connect is not available on this server. Enable it in Jellyfin server settings.";
@@ -49,13 +52,13 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
 
         Code = initResult.Code;
         StatusMessage = $"Enter code {Code} on another device";
-        Debug.WriteLine($"[QuickConnect] Initiated with code: {Code}");
+        Debug.WriteLine("[QuickConnect] Initiated");
 
         // Poll for authorization
         _pollCts = new CancellationTokenSource();
         try
         {
-            await PollForAuthorization(initResult.Secret, initResult.Code, _pollCts.Token);
+            await PollForAuthorization(initResult.Secret, _pollCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -64,7 +67,7 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task PollForAuthorization(string secret, string code, CancellationToken ct)
+    private async Task PollForAuthorization(string secret, CancellationToken ct)
     {
         int attempts = 0;
         const int maxAttempts = 120; // 2 minutes at 1s interval
@@ -74,7 +77,7 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
             await Task.Delay(1000, ct);
             attempts++;
 
-            var authResult = await _api.QuickConnectCheckAuthAsync(code);
+            var authResult = await _api.QuickConnectCheckAuthAsync(secret);
             if (authResult == null) continue;
 
             if (authResult.Authenticated)
@@ -104,6 +107,7 @@ public partial class QuickConnectViewModel : ObservableObject, IDisposable
                 else
                 {
                     IsError = true;
+                    IsActive = false;
                     ErrorMessage = "Authorization succeeded but connection failed. Try again.";
                 }
                 return;

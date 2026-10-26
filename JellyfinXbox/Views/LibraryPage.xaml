@@ -12,7 +12,7 @@
         <!-- Header -->
         <StackPanel Grid.Row="0" Padding="60 40 60 0" Spacing="24">
             <StackPanel Orientation="Horizontal" Spacing="20">
-                <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+                 <Button AutomationProperties.Name="Back" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
                         Padding="12" CornerRadius="8" Click="Back_Click">
                     <FontIcon Glyph="&#xE72B;" FontSize="18" />
                 </Button>

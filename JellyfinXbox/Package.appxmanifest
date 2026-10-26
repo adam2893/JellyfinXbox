@@ -14,7 +14,7 @@
     <DisplayName>XboxJellyfish</DisplayName>
     <PublisherDisplayName>AutoClaw</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
-    <Description>A beautiful, fast Jellyfin client for Xbox Series — native AV1 and OPUS support, no transcoding required.</Description>
+    <Description>A controller-first Jellyfin client for Xbox with native playback where supported and server transcoding fallback.</Description>
   </Properties>
 
   <Dependencies>
@@ -44,7 +44,6 @@
 
   <Capabilities>
     <Capability Name="internetClient" />
-    <Capability Name="internetClientServer" />
     <Capability Name="privateNetworkClientServer" />
   </Capabilities>
 

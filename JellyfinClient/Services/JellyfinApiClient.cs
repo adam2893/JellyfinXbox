@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using JellyfinClient;
 using JellyfinClient.Models;
 
 namespace JellyfinClient.Services;
@@ -22,22 +23,33 @@ public class JellyfinApiClient
         parts.Add($"{name}={Uri.EscapeDataString(value)}");
         return path + "?" + string.Join("&", parts) + fragment;
     }
+
+    private string CombineServerUrl(string path)
+    {
+        return Uri.TryCreate(path, UriKind.Absolute, out var absolute) &&
+               (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps)
+            ? absolute.ToString()
+            : JellyfinEndpointBuilder.Combine(ServerUrl, path);
+    }
     private const string StoreKeyServerUrl = "session.serverUrl";
     private const string StoreKeyAccessToken = "session.accessToken";
     private const string StoreKeyCurrentUser = "session.currentUser";
     private const string StoreKeySettings = "session.settings";
     private const string StoreKeyServerInfo = "session.serverInfo";
+    private const string StoreKeyDeviceId = "session.deviceId";
 
     private HttpClient _http;
     private readonly Func<HttpClient>? _httpFactory;
     private readonly ISessionStore? _store;
     private readonly JsonSerializerOptions _jsonOpts;
+    private readonly string _deviceId;
 
     public string? ServerUrl { get; private set; }
     public string? AccessToken { get; private set; }
     public User? CurrentUser { get; private set; }
     public ServerInfo? ServerInfo { get; private set; }
     public UserSettings Settings { get; private set; } = UserSettings.Default;
+    public string DeviceId => _deviceId;
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(AccessToken) && CurrentUser != null;
 
@@ -54,16 +66,28 @@ public class JellyfinApiClient
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
+        _deviceId = LoadOrCreateDeviceId();
         RestoreSession();
         ApplyAuth();
     }
 
     public void SetServerUrl(string url)
     {
-        var normalized = url.TrimEnd('/');
+        if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(parsed.Host))
+        {
+            throw new ArgumentException("Enter a valid HTTP or HTTPS server URL.", nameof(url));
+        }
+
+        var normalized = parsed.ToString().TrimEnd('/');
         if (!string.Equals(ServerUrl, normalized, StringComparison.OrdinalIgnoreCase))
         {
-            if (ServerUrl != null && _httpFactory != null)
+            // Never carry credentials or live session state across origins.
+            var hadServer = ServerUrl != null;
+            StopWebSocketListener();
+            ClearSession();
+            if (hadServer && _httpFactory != null)
             {
                 _http.Dispose();
                 _http = _httpFactory();
@@ -77,16 +101,15 @@ public class JellyfinApiClient
 
     private void ApplyAuth()
     {
-        const string client = "XboxJellyfish";
+        const string client = ClientInfo.Name;
         const string device = "Xbox Series";
-        const string deviceId = "XboxJellyfish-Xbox";
-        const string version = "1.0.0.0";
+        const string version = ClientInfo.Version;
 
         if (!string.IsNullOrEmpty(AccessToken))
         {
             _http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("MediaBrowser",
-                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{deviceId}\", Version=\"{version}\", Token=\"{AccessToken}\"");
+                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{_deviceId}\", Version=\"{version}\", Token=\"{AccessToken}\"");
             _http.DefaultRequestHeaders.Remove("X-Emby-Token");
             _http.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Token", AccessToken);
             StartWebSocketListener();
@@ -95,7 +118,7 @@ public class JellyfinApiClient
         {
             _http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("MediaBrowser",
-                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{deviceId}\", Version=\"{version}\"");
+                    $"Client=\"{client}\", Device=\"{device}\", DeviceId=\"{_deviceId}\", Version=\"{version}\"");
             _http.DefaultRequestHeaders.Remove("X-Emby-Token");
             StopWebSocketListener();
         }
@@ -114,6 +137,16 @@ public class JellyfinApiClient
     #endregion
 
     #region Session Persistence
+
+    private string LoadOrCreateDeviceId()
+    {
+        var existing = _store?.Get(StoreKeyDeviceId);
+        if (!string.IsNullOrWhiteSpace(existing)) return existing;
+
+        var generated = $"XboxJellyfish-{Guid.NewGuid():N}";
+        _store?.Set(StoreKeyDeviceId, generated);
+        return generated;
+    }
 
     /// <summary>
     /// Restores the last authenticated session (server URL, token, user,
@@ -280,13 +313,14 @@ public class JellyfinApiClient
         catch { return null; }
     }
 
-    public async Task<QuickConnectAuthorizeResponse?> QuickConnectCheckAuthAsync(string code)
+    public async Task<QuickConnectAuthorizeResponse?> QuickConnectCheckAuthAsync(string secret)
     {
         try
         {
-            // Current API takes the display code, not the secret.
+            // The Xbox polls with the secret returned by Initiate. The display
+            // code is only entered on the already-authenticated device.
             var result = await _http.GetFromJsonAsync<QuickConnectAuthorizeResponse>(
-                $"QuickConnect/Authorize?code={Uri.EscapeDataString(code)}", _jsonOpts);
+                $"QuickConnect/Connect?Secret={Uri.EscapeDataString(secret)}", _jsonOpts);
             return result;
         }
         catch { return null; }
@@ -641,9 +675,6 @@ public class JellyfinApiClient
     public string BuildTranscodeUrlWithTracks(string itemId, MediaSourceInfo source,
         int? audioIndex = null, int? subtitleIndex = null)
     {
-        var baseUrl = ServerUrl;
-        string tokenParam = !string.IsNullOrEmpty(AccessToken) ? $"api_key={AccessToken}" : "";
-
         // If the source already provides a TranscodingUrl from PlaybackInfo, use it
         if (!string.IsNullOrEmpty(source.TranscodingUrl))
         {
@@ -655,25 +686,24 @@ public class JellyfinApiClient
             else if (subtitleIndex.HasValue && subtitleIndex.Value < 0)
                 url = ReplaceQueryParameter(url, "SubtitleStreamIndex", "-1");
 
-            if (!string.IsNullOrEmpty(tokenParam) && !url.Contains("api_key="))
-                url += (url.Contains('?') ? "&" : "?") + tokenParam;
-
-            return $"{baseUrl}{url}";
+            return JellyfinEndpointBuilder.WithQuery(
+                CombineServerUrl(url),
+                ("api_key", AccessToken));
         }
 
         // When changing tracks, static=true must NOT be used because static streams ignore track selection
         bool isStatic = !audioIndex.HasValue && (!subtitleIndex.HasValue || subtitleIndex.Value < 0) && source.SupportsDirectPlay;
 
-        var streamUrl = $"Videos/{itemId}/stream?MediaSourceId={source.Id}";
-        if (isStatic) streamUrl += "&static=true";
-        if (audioIndex.HasValue) streamUrl = ReplaceQueryParameter(streamUrl, "AudioStreamIndex", audioIndex.Value.ToString());
-        if (subtitleIndex.HasValue && subtitleIndex.Value >= 0) streamUrl = ReplaceQueryParameter(streamUrl, "SubtitleStreamIndex", subtitleIndex.Value.ToString());
-        else if (subtitleIndex.HasValue && subtitleIndex.Value < 0) streamUrl = ReplaceQueryParameter(streamUrl, "SubtitleStreamIndex", "-1");
-
-        if (!string.IsNullOrEmpty(tokenParam))
-            streamUrl += $"&{tokenParam}";
-
-        return $"{baseUrl}{streamUrl}";
+        var streamUrl = JellyfinEndpointBuilder.WithQuery(
+            JellyfinEndpointBuilder.Combine(ServerUrl, $"Videos/{Uri.EscapeDataString(itemId)}/stream"),
+            ("MediaSourceId", source.Id),
+            ("static", isStatic ? true : null),
+            ("api_key", AccessToken));
+        if (audioIndex.HasValue)
+            streamUrl = ReplaceQueryParameter(streamUrl, "AudioStreamIndex", audioIndex.Value.ToString());
+        if (subtitleIndex.HasValue)
+            streamUrl = ReplaceQueryParameter(streamUrl, "SubtitleStreamIndex", subtitleIndex.Value < 0 ? "-1" : subtitleIndex.Value.ToString());
+        return streamUrl;
     }
 
     public async Task<IntroTimestampsResult> GetIntroTimestampsAsync(string itemId)
@@ -864,7 +894,7 @@ public class JellyfinApiClient
                 var baseUri = new Uri(ServerUrl);
                 var wsScheme = baseUri.Scheme == "https" ? "wss" : "ws";
                 var path = baseUri.AbsolutePath.TrimEnd('/');
-                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}{path}/socket?api_key={Uri.EscapeDataString(AccessToken)}&deviceId=XboxJellyfish-Xbox");
+                var wsUri = new Uri($"{wsScheme}://{baseUri.Authority}{path}/socket?api_key={Uri.EscapeDataString(AccessToken)}&deviceId={Uri.EscapeDataString(_deviceId)}");
 
                 _webSocket = new ClientWebSocket();
                 await _webSocket.ConnectAsync(wsUri, ct);
@@ -936,7 +966,7 @@ public class JellyfinApiClient
 
     public string GetImageUrl(string itemId, string imageType = "Primary", int? maxWidth = null, int? maxHeight = null)
     {
-        var url = $"Items/{itemId}/Images/{imageType}";
+        var url = $"Items/{Uri.EscapeDataString(itemId)}/Images/{Uri.EscapeDataString(imageType)}";
         var @params = new List<string>();
         if (maxWidth.HasValue) @params.Add($"maxWidth={maxWidth.Value}");
         if (maxHeight.HasValue) @params.Add($"maxHeight={maxHeight.Value}");
@@ -946,14 +976,14 @@ public class JellyfinApiClient
 
     public string GetBackdropUrl(string itemId, int index = 0, int? maxWidth = null)
     {
-        var url = $"Items/{itemId}/Images/Backdrop/{index}";
+        var url = $"Items/{Uri.EscapeDataString(itemId)}/Images/Backdrop/{index}";
         if (maxWidth.HasValue) url += $"?maxWidth={maxWidth.Value}";
         return url;
     }
 
     public string GetPersonImageUrl(string personId, int? maxWidth = null)
     {
-        var url = $"Items/{personId}/Images/Primary";
+        var url = $"Items/{Uri.EscapeDataString(personId)}/Images/Primary";
         if (maxWidth.HasValue) url += $"?maxWidth={maxWidth.Value}";
         return url;
     }
@@ -998,6 +1028,62 @@ public class JellyfinApiClient
     #endregion
 
     #region Helpers
+
+    private async Task<(T? Value, string? Error)> SelfCheckGetAsync<T>(string relativeUrl)
+    {
+        try
+        {
+            using var response = await _http.GetAsync(relativeUrl);
+            if (!response.IsSuccessStatusCode)
+                return (default, $"HTTP {(int)response.StatusCode}");
+
+            var value = await response.Content.ReadFromJsonAsync<T>(_jsonOpts);
+            return value == null ? (default, "empty response") : (value, null);
+        }
+        catch (Exception ex)
+        {
+            return (default, ex.GetType().Name);
+        }
+    }
+
+    private async Task<(T? Value, string? Error)> SelfCheckPostAsync<T>(string relativeUrl, object body)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(relativeUrl, body, _jsonOpts);
+            if (!response.IsSuccessStatusCode)
+                return (default, $"HTTP {(int)response.StatusCode}");
+
+            var value = await response.Content.ReadFromJsonAsync<T>(_jsonOpts);
+            return value == null ? (default, "empty response") : (value, null);
+        }
+        catch (Exception ex)
+        {
+            return (default, ex.GetType().Name);
+        }
+    }
+
+    private async Task<(bool Ok, string Detail)> ProbeSelfCheckUrlAsync(string url)
+    {
+        try
+        {
+            using var head = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await _http.SendAsync(head, HttpCompletionOption.ResponseHeadersRead);
+            if ((int)response.StatusCode is not (405 or 501))
+                return (response.IsSuccessStatusCode, $"HTTP {(int)response.StatusCode}");
+
+            // Some Jellyfin reverse proxies reject HEAD. Probe one byte with a
+            // range GET instead of downloading the media or image.
+            using var get = new HttpRequestMessage(HttpMethod.Get, url);
+            get.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+            using var ranged = await _http.SendAsync(get, HttpCompletionOption.ResponseHeadersRead);
+            return (ranged.IsSuccessStatusCode, $"HTTP {(int)ranged.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.GetType().Name);
+        }
+    }
 
     public TimeSpan? GetRuntime(BaseItemDto item) =>
         item.RunTimeTicks.HasValue ? TimeSpan.FromTicks(item.RunTimeTicks.Value) : null;
@@ -1059,79 +1145,108 @@ public class JellyfinApiClient
         // 3. Views
         await Check("Views (UserViews)", async () =>
         {
-            var views = await GetViewsAsync();
-            return (true, $"{views.Count} library view(s)");
+            var result = await SelfCheckGetAsync<List<ViewItem>>(
+                $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
+            return result.Error != null
+                ? (false, result.Error)
+                : (true, $"{result.Value?.Count ?? 0} library view(s)");
         });
 
         // 4. Resume
         await Check("Resume (UserItems/Resume)", async () =>
         {
-            var items = await GetResumeItemsAsync(5);
-            return (true, $"{items.Items.Count} item(s)");
+            var result = await SelfCheckGetAsync<ItemsResult>(
+                $"UserItems/Resume?userId={Uri.EscapeDataString(CurrentUser!.Id)}&Limit=5&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes&MediaTypes=Video");
+            return result.Error != null
+                ? (false, result.Error)
+                : (true, $"{result.Value?.Items.Count ?? 0} item(s)");
         });
 
         // 5. Library items (first view)
         await Check("Library items (Items)", async () =>
         {
-            var views = await GetViewsAsync();
-            var view = views.FirstOrDefault();
+            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+                $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
+            if (viewsResult.Error != null) return (false, viewsResult.Error);
+            var view = viewsResult.Value?.FirstOrDefault();
             if (view == null) return (false, "no library views");
-            var items = await GetItemsAsync(view.Id, limit: 5);
-            return (true, $"{items.Items.Count} item(s) in '{view.Name}'");
+            var result = await SelfCheckGetAsync<ItemsResult>(
+                $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=5&Recursive=true");
+            return result.Error != null
+                ? (false, result.Error)
+                : (true, $"{result.Value?.Items.Count ?? 0} item(s) in '{view.Name}'");
         });
 
         // 6. Search
         await Check("Search (Items?SearchTerm)", async () =>
         {
-            var items = await SearchAsync("test", limit: 5);
-            return (true, $"{items.Items.Count} result(s)");
+            var result = await SelfCheckGetAsync<ItemsResult>(
+                $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&SearchTerm=test&Limit=5&Recursive=true&IncludeItemTypes=Movie,Series,Episode");
+            return result.Error != null
+                ? (false, result.Error)
+                : (true, $"{result.Value?.Items.Count ?? 0} result(s)");
         });
 
         // 7. Next up
         await Check("Next up (Shows/NextUp)", async () =>
         {
-            var items = await GetNextUpAsync(limit: 5);
-            return (true, $"{items.Items.Count} episode(s)");
+            var result = await SelfCheckGetAsync<ItemsResult>(
+                $"Shows/NextUp?UserId={Uri.EscapeDataString(CurrentUser!.Id)}&Limit=5&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes");
+            return result.Error != null
+                ? (false, result.Error)
+                : (true, $"{result.Value?.Items.Count ?? 0} episode(s)");
         });
 
         // 8. PlaybackInfo + stream URL (the critical path for playback)
         await Check("Playback info + stream URL", async () =>
         {
-            var views = await GetViewsAsync();
-            var view = views.FirstOrDefault();
+            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+                $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
+            if (viewsResult.Error != null) return (false, viewsResult.Error);
+            var view = viewsResult.Value?.FirstOrDefault();
             if (view == null) return (false, "no library views");
 
-            var items = await GetItemsAsync(view.Id, includeItemTypes: "Movie,Episode", limit: 3);
-            var item = items.Items.FirstOrDefault();
+            var itemsResult = await SelfCheckGetAsync<ItemsResult>(
+                $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=3&Recursive=true&IncludeItemTypes=Movie,Episode");
+            if (itemsResult.Error != null) return (false, itemsResult.Error);
+            var item = itemsResult.Value?.Items.FirstOrDefault();
             if (item == null) return (false, "no playable items found");
 
-            var playback = await GetPlaybackInfoAsync(item.Id);
-            var source = playback?.MediaSources.FirstOrDefault();
+            var profile = System.Text.Json.Nodes.JsonNode.Parse(DeviceProfileBuilder.GetXboxProfileJson(Settings.MaxStreamingBitrate));
+            var playbackResult = await SelfCheckPostAsync<PlaybackInfoResponse>(
+                $"Items/{Uri.EscapeDataString(item.Id)}/PlaybackInfo?UserId={Uri.EscapeDataString(CurrentUser!.Id)}&MaxStreamingBitrate={Settings.MaxStreamingBitrate}&AutoOpenLiveStreams=true",
+                profile!);
+            if (playbackResult.Error != null) return (false, playbackResult.Error);
+            var source = playbackResult.Value?.MediaSources.FirstOrDefault();
             if (source == null) return (false, "no media sources returned");
 
-            // Verify the stream URL authenticates (api_key query param).
-            var streamUrl = $"{ServerUrl}/Videos/{item.Id}/stream?static=true&MediaSourceId={source.Id}&api_key={AccessToken}";
-            using var probe = new HttpRequestMessage(HttpMethod.Head, streamUrl);
-            var response = await _http.SendAsync(probe);
-            var code = (int)response.StatusCode;
-            var ok = code is 200 or 206 or 302 or 401 or 403; // 401/403 = auth param issue, still a signal
-            return (code == 200 || code == 206,
-                $"'{item.Name}' source='{source.Id}' directPlay={source.SupportsDirectPlay} stream HTTP {code}");
+            var streamUrl = JellyfinEndpointBuilder.WithQuery(
+                CombineServerUrl($"Videos/{Uri.EscapeDataString(item.Id)}/stream"),
+                ("static", true),
+                ("MediaSourceId", source.Id),
+                ("api_key", AccessToken));
+            var probe = await ProbeSelfCheckUrlAsync(streamUrl);
+            return (probe.Ok,
+                $"'{item.Name}' source='{source.Id}' directPlay={source.SupportsDirectPlay} {probe.Detail}");
         });
 
         // 9. Image loading
         await Check("Image endpoint", async () =>
         {
-            var views = await GetViewsAsync();
-            var view = views.FirstOrDefault();
+            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+                $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
+            if (viewsResult.Error != null) return (false, viewsResult.Error);
+            var view = viewsResult.Value?.FirstOrDefault();
             if (view == null) return (false, "no library views");
-            var items = await GetItemsAsync(view.Id, limit: 1);
-            var item = items.Items.FirstOrDefault();
+            var itemsResult = await SelfCheckGetAsync<ItemsResult>(
+                $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=1&Recursive=true");
+            if (itemsResult.Error != null) return (false, itemsResult.Error);
+            var item = itemsResult.Value?.Items.FirstOrDefault();
             if (item == null) return (false, "no items");
-            using var probe = new HttpRequestMessage(HttpMethod.Head,
-                $"{ServerUrl}{GetImageUrl(item.Id, maxWidth: 128)}");
-            var response = await _http.SendAsync(probe);
-            return (response.IsSuccessStatusCode, $"HTTP {(int)response.StatusCode}");
+            var imageUrl = JellyfinEndpointBuilder.WithQuery(
+                CombineServerUrl(GetImageUrl(item.Id, maxWidth: 128)),
+                ("api_key", AccessToken));
+            return await ProbeSelfCheckUrlAsync(imageUrl);
         });
 
         // 10. Quick Connect availability
@@ -1139,7 +1254,7 @@ public class JellyfinApiClient
         {
             var qc = await QuickConnectInitAsync();
             return qc != null
-                ? (true, $"enabled, code '{qc.Code}' (secret discarded)")
+                ? (true, "enabled")
                 : (false, "not enabled on this server");
         });
 

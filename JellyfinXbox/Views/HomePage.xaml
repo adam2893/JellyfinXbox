@@ -83,7 +83,7 @@
             <!-- ═══════════════════════════════════════ -->
             <!--          CONTINUE WATCHING               -->
             <!-- ═══════════════════════════════════════ -->
-            <StackPanel Visibility="{x:Bind ViewModel.HasContinueWatching, Mode=OneWay}"
+                 <StackPanel Visibility="{x:Bind ViewModel.HasContinueWatching, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                         Spacing="20">
                 <TextBlock Text="Continue Watching"
                            FontSize="24" FontWeight="SemiBold"
@@ -135,7 +135,7 @@
             <!-- ═══════════════════════════════════════ -->
             <!--              NEXT UP                     -->
             <!-- ═══════════════════════════════════════ -->
-            <StackPanel Visibility="{x:Bind ViewModel.HasNextUp, Mode=OneWay}"
+             <StackPanel Visibility="{x:Bind ViewModel.HasNextUp, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                         Spacing="20">
                 <TextBlock Text="Next Up"
                            FontSize="24" FontWeight="SemiBold"

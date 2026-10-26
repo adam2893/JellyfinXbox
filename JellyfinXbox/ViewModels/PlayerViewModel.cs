@@ -21,6 +21,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private MediaPlayer? _player;
     private Timer? _reportTimer;
+    private CancellationTokenSource? _loadCts;
     private string? _currentItemId;
     private MediaSourceInfo? _currentMediaSource;
     private bool _triedTranscodeFallback;
@@ -41,7 +42,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial TimeSpan Duration { get; set; }
     [ObservableProperty] public partial string PositionDisplay { get; set; }
     [ObservableProperty] public partial string DurationDisplay { get; set; }
-    [ObservableProperty] public partial string BackdropUrl { get; set; }
+    [ObservableProperty] public partial string? BackdropUrl { get; set; }
     [ObservableProperty] public partial double BufferingProgress { get; set; }
     [ObservableProperty] public partial string CurrentVideoCodec { get; set; }
     [ObservableProperty] public partial string CurrentAudioCodec { get; set; }
@@ -111,6 +112,10 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     public async Task LoadAsync(string itemId, TimeSpan? startPosition = null)
     {
         var generation = Interlocked.Increment(ref _loadGeneration);
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        var loadCts = new CancellationTokenSource();
+        _loadCts = loadCts;
         _reportTimer?.Dispose();
         _reportTimer = null;
         _upNextTimer?.Stop();
@@ -121,17 +126,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         PlaybackStatusMessage = "Loading playback…";
         // Detach the old media instance before awaiting network work so late
         // events from it cannot update the newly requested item's state.
-        if (_player != null)
-        {
-            _player.MediaOpened -= Player_MediaOpened;
-            _player.PlaybackSession.PlaybackStateChanged -= Playback_PlaybackStateChanged;
-            _player.PlaybackSession.PositionChanged -= Playback_PositionChanged;
-            _player.MediaEnded -= Player_MediaEnded;
-            _player.MediaFailed -= Player_MediaFailed;
-            _player.Dispose();
-            _player = null;
-        }
+        DisposePlayer();
         var itemResult = await _api.GetItemResultAsync(itemId);
+        if (loadCts.IsCancellationRequested || generation != _loadGeneration) return;
         var item = itemResult.Item;
         if (item == null)
         {
@@ -184,16 +181,18 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         // Fetch intro timestamps in background
         _ = Task.Run(async () =>
         {
+            if (loadCts.IsCancellationRequested) return;
             var result = await _api.GetIntroTimestampsAsync(itemId);
-            if (generation == _loadGeneration) _introTimestamps = result;
-        });
+            if (!loadCts.IsCancellationRequested && generation == _loadGeneration) _introTimestamps = result;
+        }, loadCts.Token);
 
         // Fetch trickplay manifest in background
         _ = Task.Run(async () =>
         {
+            if (loadCts.IsCancellationRequested) return;
             var result = await _api.GetTrickplayManifestAsync(itemId);
-            if (generation == _loadGeneration) _trickplayInfo = result;
-        });
+            if (!loadCts.IsCancellationRequested && generation == _loadGeneration) _trickplayInfo = result;
+        }, loadCts.Token);
 
         if (item.Type == "Episode")
         {
@@ -208,20 +207,21 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                 {
                     try
                     {
+                        if (loadCts.IsCancellationRequested) return;
                         var eps = await _api.GetEpisodesAsync(item.SeriesId, item.SeasonId ?? "");
                         var idx = eps.Items.FindIndex(e => e.Id == item.Id);
-                        if (generation == _loadGeneration && idx >= 0 && idx < eps.Items.Count - 1)
+                        if (!loadCts.IsCancellationRequested && generation == _loadGeneration && idx >= 0 && idx < eps.Items.Count - 1)
                         {
                             _nextEpisode = eps.Items[idx + 1];
                             _dispatcher.TryEnqueue(() =>
                             {
                                 UpNextTitle = $"S{_nextEpisode.ParentIndexNumber:D2}E{_nextEpisode.IndexNumber:D2} · {_nextEpisode.Name}";
-                                UpNextThumbnailUrl = $"{_api.ServerUrl}{_api.GetImageUrl(_nextEpisode.Id, "Primary", maxWidth: 400)}";
+                                UpNextThumbnailUrl = _api.GetItemImageUrl(_nextEpisode, "Primary", 400);
                             });
                         }
                     }
                     catch { }
-                });
+                }, loadCts.Token);
             }
         }
         else if (item.ProductionYear.HasValue)
@@ -237,8 +237,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         var maxBitrate = _api.Settings.MaxStreamingBitrate;
         IsBuffering = true;
         var playbackResult = await _api.GetPlaybackInfoResultAsync(itemId, maxBitrate);
+        if (loadCts.IsCancellationRequested || generation != _loadGeneration) return;
         var playbackInfo = playbackResult.PlaybackInfo;
-        if (generation != _loadGeneration) return;
 
         if (playbackInfo?.MediaSources == null || playbackInfo.MediaSources.Count == 0)
         {
@@ -327,16 +327,22 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private string BuildMediaUrl(string itemId, MediaSourceInfo source)
     {
         if (source.SupportsDirectPlay && !string.IsNullOrEmpty(source.DirectStreamUrl))
-            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, source.DirectStreamUrl), ("api_key", _api.AccessToken));
+            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.DirectStreamUrl), ("api_key", _api.AccessToken));
 
         if (source.SupportsDirectStream)
-            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, $"Videos/{itemId}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
+            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl($"Videos/{Uri.EscapeDataString(itemId)}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
 
         if (!string.IsNullOrEmpty(source.TranscodingUrl))
-            return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, source.TranscodingUrl), ("api_key", _api.AccessToken));
+            return JellyfinEndpointBuilder.WithQuery(CombineServerUrl(source.TranscodingUrl), ("api_key", _api.AccessToken));
 
-        return JellyfinEndpointBuilder.WithQuery(JellyfinEndpointBuilder.Combine(_api.ServerUrl, $"Videos/{itemId}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
+        return JellyfinEndpointBuilder.WithQuery(CombineServerUrl($"Videos/{Uri.EscapeDataString(itemId)}/stream"), ("static", true), ("MediaSourceId", source.Id), ("api_key", _api.AccessToken));
     }
+
+    private string CombineServerUrl(string path) =>
+        Uri.TryCreate(path, UriKind.Absolute, out var absolute) &&
+        (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps)
+            ? absolute.ToString()
+            : JellyfinEndpointBuilder.Combine(_api.ServerUrl, path);
 
     private static string RedactPlaybackUrl(string url)
     {
@@ -604,7 +610,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             IsBuffering = true;
             Debug.WriteLine("[Player] Direct play failed - retrying with transcode");
 
-            var url = $"{_api.ServerUrl}{_currentMediaSource.TranscodingUrl}&api_key={_api.AccessToken}";
+            var url = _api.BuildTranscodeUrlWithTracks(_currentItemId, _currentMediaSource);
             _player!.Source = MediaSource.CreateFromUri(new Uri(url));
             return;
         }
@@ -871,6 +877,10 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = null;
+        Interlocked.Increment(ref _loadGeneration);
         _api.OnPlaystateCommand -= Api_OnPlaystateCommand;
         _api.OnGeneralCommand -= Api_OnGeneralCommand;
         _api.OnPlayCommand -= Api_OnPlayCommand;
@@ -878,6 +888,18 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _reportTimer?.Dispose();
         if (_currentItemId != null && IsPlaying)
             _ = _api.ReportPlaybackStoppedAsync(_currentItemId, Position.Ticks);
-        _player?.Dispose();
+        DisposePlayer();
+    }
+
+    private void DisposePlayer()
+    {
+        if (_player == null) return;
+        _player.MediaOpened -= Player_MediaOpened;
+        _player.PlaybackSession.PlaybackStateChanged -= Playback_PlaybackStateChanged;
+        _player.PlaybackSession.PositionChanged -= Playback_PositionChanged;
+        _player.MediaEnded -= Player_MediaEnded;
+        _player.MediaFailed -= Player_MediaFailed;
+        _player.Dispose();
+        _player = null;
     }
 }

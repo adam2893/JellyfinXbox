@@ -141,7 +141,11 @@ The workflow in [`.github/workflows/build-xbox-appx.yml`](.github/workflows/buil
 
 ### Audit before release
 
-The **Audit Xbox AppX** workflow runs automatically on pull requests and can be started manually from **Actions → Audit Xbox AppX**. It runs the client tests, builds the x64 package, verifies the packaged runtime and certificate, and uploads a `jellyfinxbox-audit` artifact with an audit report and SHA-256 manifest. Install that exact artifact on Xbox and complete the manual test matrix before treating the build as release-ready.
+The **Audit Xbox AppX** workflow runs automatically on pull requests and can be started manually from **Actions → Audit Xbox AppX**. It runs the client tests, builds the x64 package, verifies the packaged runtime and certificate, runs the Windows App Certification Kit, and uploads a `jellyfinxbox-audit` artifact with an audit report and SHA-256 manifest. Install that exact artifact on Xbox and complete the manual test matrix before treating the build as release-ready.
+
+### Prepare a Store submission
+
+After associating the project with its Partner Center app and replacing the placeholder package identity, run **Actions → Prepare Xbox Store package**. It produces the `.msixupload`/`.appxupload` artifact required for Partner Center. See [`docs/STORE-SUBMISSION.md`](docs/STORE-SUBMISSION.md); the sideload `.msix` is not the Store upload artifact.
 
 ### Install on Windows 10/11
 1. Trust the certificate: double-click `JellyfinXbox.cer` → Install Certificate → **Local Machine** → **Trusted Root Certification Authorities**. (Use the `.cer` from the same zip as the `.msix` — every build mints a fresh cert.)

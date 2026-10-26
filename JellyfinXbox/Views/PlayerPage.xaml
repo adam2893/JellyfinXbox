@@ -65,7 +65,7 @@
             <StackPanel Spacing="12">
                 <Grid>
                     <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" CharacterSpacing="100" />
-                    <Button HorizontalAlignment="Right" Command="{x:Bind ViewModel.CancelUpNextCommand}"
+                         <Button HorizontalAlignment="Right" AutomationProperties.Name="Dismiss up next" Command="{x:Bind ViewModel.CancelUpNextCommand}"
                             Background="Transparent" Padding="4" Margin="0 -4 -4 0">
                         <FontIcon Glyph="&#xE711;" FontSize="14" Foreground="#FFFFFFAA" />
                     </Button>
@@ -137,7 +137,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Playback Settings" FontSize="22" FontWeight="Bold"
                                    Foreground="White" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Click="CloseTrackPanel_Click"
+                         <Button Grid.Column="1" AutomationProperties.Name="Close playback settings" Click="CloseTrackPanel_Click"
                                 Background="Transparent" Foreground="White"
                                 Padding="8" CornerRadius="6">
                             <FontIcon Glyph="&#xE711;" FontSize="16" />
@@ -347,34 +347,34 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal"
                                 HorizontalAlignment="Center" Spacing="8">
                         <!-- Prev Chapter -->
-                        <Button Command="{x:Bind ViewModel.PreviousChapterCommand}" Background="Transparent"
+                         <Button AutomationProperties.Name="Previous chapter" Command="{x:Bind ViewModel.PreviousChapterCommand}" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
                                 ToolTipService.ToolTip="Previous Chapter">
                             <FontIcon Glyph="&#xE892;" FontSize="18" />
                         </Button>
-                        <Button Click="SeekBack_Click" Background="Transparent"
+                         <Button AutomationProperties.Name="Rewind ten seconds" Click="SeekBack_Click" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
                                 ToolTipService.ToolTip="Rewind 10s">
                             <FontIcon Glyph="&#xE71F;" FontSize="20" />
                         </Button>
-                        <Button Click="PlayPause_Click" Background="Transparent"
+                         <Button AutomationProperties.Name="Play or pause" Click="PlayPause_Click" Background="Transparent"
                                 Foreground="White" Padding="16" CornerRadius="8">
                             <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" FontSize="32" />
                         </Button>
-                        <Button Click="SeekForward_Click" Background="Transparent"
+                         <Button AutomationProperties.Name="Forward ten seconds" Click="SeekForward_Click" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
                                 ToolTipService.ToolTip="Forward 10s">
                             <FontIcon Glyph="&#xE720;" FontSize="20" />
                         </Button>
                         <!-- Next Chapter -->
-                        <Button Command="{x:Bind ViewModel.NextChapterCommand}" Background="Transparent"
+                         <Button AutomationProperties.Name="Next chapter" Command="{x:Bind ViewModel.NextChapterCommand}" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
                                 ToolTipService.ToolTip="Next Chapter">
                             <FontIcon Glyph="&#xE893;" FontSize="18" />
                         </Button>
 
                         <!-- Speed toggle button -->
-                        <Button Command="{x:Bind ViewModel.CyclePlaybackSpeedCommand}" Background="#33FFFFFF"
+                         <Button AutomationProperties.Name="Cycle playback speed" Command="{x:Bind ViewModel.CyclePlaybackSpeedCommand}" Background="#33FFFFFF"
                                 Foreground="White" Padding="12 6" CornerRadius="6" Margin="8 0 0 0"
                                 ToolTipService.ToolTip="Playback Speed">
                             <TextBlock Text="{x:Bind ViewModel.PlaybackSpeedDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" />
@@ -383,7 +383,7 @@
                         <!-- Settings & Track panel toggle -->
                         <Border Width="1" Background="#40FFFFFF" Margin="8 4" />
 
-                        <Button Click="ToggleTrackPanel_Click" Background="Transparent"
+                         <Button AutomationProperties.Name="Audio subtitles and playback settings" Click="ToggleTrackPanel_Click" Background="Transparent"
                                 Foreground="White" Padding="12" CornerRadius="8"
                                 ToolTipService.ToolTip="Audio, Subtitles &amp; Settings">
                             <FontIcon Glyph="&#xEDC4;" FontSize="20" />
@@ -438,7 +438,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Click="Back_Click" Background="Transparent"
+             <Button Grid.Column="0" AutomationProperties.Name="Back" Click="Back_Click" Background="Transparent"
                     Foreground="White" Padding="12" CornerRadius="8">
                 <FontIcon Glyph="&#xE72B;" FontSize="20" />
             </Button>

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JellyfinClient;
 using JellyfinClient.Models;
 using JellyfinClient.Services;
 
@@ -14,7 +15,8 @@ public partial class DebugViewModel : ObservableObject
 
     public ObservableCollection<SelfCheckResult> Results { get; } = new();
     [ObservableProperty] public partial string ReportText { get; set; } = "";
-    public string AppVersion => "1.0.0.0";
+    public string AppVersion => ClientInfo.Version;
+    public string VersionLabel => $"Version {AppVersion} · Support: github.com/adam2893/JellyfinXbox/issues";
     public string SupportUrl => "https://github.com/adam2893/JellyfinXbox/issues";
 
     public DebugViewModel(JellyfinApiClient api)

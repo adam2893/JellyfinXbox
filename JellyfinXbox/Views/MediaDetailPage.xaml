@@ -143,7 +143,7 @@
                 <!-- ═══════════════════════════════════════ -->
                 <!--          SEASON SELECTOR                -->
                 <!-- ═══════════════════════════════════════ -->
-                <StackPanel Visibility="{x:Bind ViewModel.IsSeries, Mode=OneWay}" Spacing="20">
+                 <StackPanel Visibility="{x:Bind ViewModel.IsSeries, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Spacing="20">
                     <TextBlock Text="Seasons" FontSize="24" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
 
@@ -324,7 +324,7 @@
         </ScrollViewer>
 
         <!-- Back button (top-left) -->
-        <Button VerticalAlignment="Top" HorizontalAlignment="Left"
+         <Button AutomationProperties.Name="Back" VerticalAlignment="Top" HorizontalAlignment="Left"
                 Margin="20 16"
                 Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
                 Foreground="{StaticResource TextPrimaryBrush}"

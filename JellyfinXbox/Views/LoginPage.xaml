@@ -59,7 +59,7 @@
 
             <!-- Loading -->
             <ProgressBar IsIndeterminate="True"
-                         Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                         Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                          Foreground="{StaticResource AccentBrush}" />
 
             <!-- Error -->

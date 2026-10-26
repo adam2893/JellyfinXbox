@@ -17,7 +17,7 @@
 
                 <!-- Header -->
                 <StackPanel Orientation="Horizontal" Spacing="16">
-                    <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+                     <Button AutomationProperties.Name="Back" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
                             Padding="12" CornerRadius="8" Click="Back_Click">
                         <FontIcon Glyph="&#xE72B;" FontSize="18" />
                     </Button>
@@ -53,7 +53,7 @@
                                Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" />
                     <Button Content="Copy diagnostic report" Command="{x:Bind ViewModel.CopyReportCommand}"
                             Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
-                    <TextBlock Text="Version 1.0.0.0 · Support: github.com/adam2893/JellyfinXbox/issues"
+                     <TextBlock Text="{x:Bind ViewModel.VersionLabel, Mode=OneWay}"
                                Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
 

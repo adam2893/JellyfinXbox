@@ -10,7 +10,7 @@
         <StackPanel Width="520" Spacing="32">
 
             <!-- Back button -->
-            <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+             <Button AutomationProperties.Name="Back" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
                     Padding="12" CornerRadius="8" Click="Back_Click"
                     HorizontalAlignment="Left">
                 <FontIcon Glyph="&#xE72B;" FontSize="18" />

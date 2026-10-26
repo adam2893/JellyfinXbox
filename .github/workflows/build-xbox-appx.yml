@@ -124,7 +124,6 @@ jobs:
         run: msbuild JellyfinXbox.sln -t:Restore -p:Configuration=Release -p:Platform=x64 -v:minimal
 
       - name: Run client tests
-        if: ${{ inputs.run_audit }}
         shell: pwsh
         run: dotnet test JellyfinClient.Tests\JellyfinClient.Tests.csproj -c Release --no-restore --verbosity normal
 
@@ -198,6 +197,33 @@ jobs:
           Write-Host "Bundled .NET runtime files:"
           $runtimeFiles | ForEach-Object { Write-Host $_.FullName }
 
+      - name: Run Windows App Certification Kit
+        if: ${{ inputs.run_audit }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $appcertCandidates = @(
+            "${env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\appcert.exe",
+            "${env:ProgramFiles}\Windows Kits\10\App Certification Kit\appcert.exe"
+          )
+          $appcert = $appcertCandidates |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $appcert) { throw "WACK failed: appcert.exe was not found on the runner." }
+
+          $package = Get-ChildItem -Path "AppxOutput" -File |
+            Where-Object { $_.Extension -in ".appx", ".appxbundle", ".msix", ".msixbundle" } |
+            Select-Object -First 1
+          if (-not $package) { throw "WACK failed: package not found in AppxOutput." }
+
+          $report = Join-Path $env:GITHUB_WORKSPACE "AppxOutput\wack-report.xml"
+          & $appcert reset
+          if ($LASTEXITCODE -ne 0) { throw "WACK reset failed with exit code $LASTEXITCODE." }
+          & $appcert test -appxpackagepath $package.FullName -reportoutputpath $report
+          if ($LASTEXITCODE -ne 0) { throw "WACK failed with exit code $LASTEXITCODE." }
+          if (-not (Test-Path $report)) { throw "WACK failed: no report was produced." }
+          Write-Host "WACK passed: $report"
+
       - name: Audit packaged AppX
         if: ${{ inputs.run_audit }}
         shell: pwsh
@@ -253,6 +279,7 @@ jobs:
           - Matching certificate: $($certificate.Name)
           - Self-contained runtime: PASS
           - Client tests: PASS (completed by the preceding build step)
+          - Windows App Certification Kit: PASS
 
           This is an automated GitHub Actions package audit. It does not replace installation and manual validation on Xbox hardware.
           "@ | Set-Content -Path "AppxOutput\audit-report.md" -Encoding utf8

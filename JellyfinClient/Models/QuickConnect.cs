@@ -90,7 +90,7 @@ public class UserSettings
     /// <summary>Max concurrent streams.</summary>
     public int MaxConcurrentStreams { get; set; } = 3;
 
-    public static readonly UserSettings Default = new();
+    public static UserSettings Default => new();
 
     public string GetMaxBitrateLabel()
     {

@@ -25,13 +25,23 @@ public sealed partial class MediaDetailPage : Page
             await ViewModel.LoadAsync(itemId);
 
             // Load images
-            if (!string.IsNullOrEmpty(ViewModel.BackdropUrl))
-                BackdropImage.Source = new Windows.UI.Xaml.Media.Imaging.BitmapImage(
-                    new Uri(ViewModel.BackdropUrl));
+            BackdropImage.Source = CreateBitmap(ViewModel.BackdropUrl);
+            PosterImage.Source = CreateBitmap(ViewModel.PosterUrl);
+        }
+    }
 
-            if (!string.IsNullOrEmpty(ViewModel.PosterUrl))
-                PosterImage.Source = new Windows.UI.Xaml.Media.Imaging.BitmapImage(
-                    new Uri(ViewModel.PosterUrl));
+    private static Windows.UI.Xaml.Media.Imaging.BitmapImage? CreateBitmap(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return null;
+
+        try
+        {
+            return new Windows.UI.Xaml.Media.Imaging.BitmapImage(uri);
+        }
+        catch
+        {
+            return null;
         }
     }
 

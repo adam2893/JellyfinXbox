@@ -13,7 +13,7 @@
             <!--              HEADER                     -->
             <!-- ═══════════════════════════════════════ -->
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <Button Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+                <Button AutomationProperties.Name="Back" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
                         Padding="12" CornerRadius="8" Click="Back_Click">
                     <FontIcon Glyph="&#xE72B;" FontSize="18" />
                 </Button>

@@ -21,6 +21,7 @@ Use this checklist for every candidate package. Attach the completed record to t
 ## Functional smoke test
 
 - [ ] GitHub Actions **Audit Xbox AppX** passed for the exact commit; audit artifact and report are attached
+- [ ] If submitting to Store: Partner Center identity is associated and the Store `.msixupload`/`.appxupload` artifact was built
 - [ ] Login, Quick Connect, user switching, server switching, browsing, search, and playback checked
 - [ ] Audio/subtitle selection, quality selection, seek, resume, Next Up, and transcode fallback checked
 - [ ] Certificate trust and API self-check checked

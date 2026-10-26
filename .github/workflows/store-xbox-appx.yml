@@ -1,0 +1,84 @@
+name: Prepare Xbox Store package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  store-package:
+    name: Build Store upload package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Partner Center package identity is configured
+        shell: pwsh
+        run: |
+          [xml]$manifest = Get-Content -Raw "JellyfinXbox\Package.appxmanifest"
+          $identity = Select-Xml -Xml $manifest -XPath "/*[local-name()='Package']/*[local-name()='Identity']"
+          if ($identity.Node.Name -eq "com.boxjellyfish.app" -or $identity.Node.Publisher -eq "CN=AutoClaw") {
+            throw "Store package blocked: associate the project with Partner Center first, then commit the assigned Name and Publisher to Package.appxmanifest."
+          }
+          Write-Host "Store identity: $($identity.Node.Name) / $($identity.Node.Publisher)"
+
+      - name: Set up .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Ensure UWP workload
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installed = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.UWP.Support 2>$null
+          if ($LASTEXITCODE -ne 0 -or -not $installed) {
+            $vsPath = (& $vswhere -latest -products * -property installationPath).Trim()
+            & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe" modify `
+              --installPath $vsPath `
+              --add Microsoft.VisualStudio.Component.UWP.Support `
+              --quiet --norestart
+            if ($LASTEXITCODE -ne 0) { throw "Failed to install UWP workload." }
+          }
+
+      - name: Restore packages
+        shell: pwsh
+        run: msbuild JellyfinXbox.sln -t:Restore -p:Configuration=Release -p:Platform=x64 -v:minimal
+
+      - name: Run client tests
+        shell: pwsh
+        run: dotnet test JellyfinClient.Tests\JellyfinClient.Tests.csproj -c Release --no-restore --verbosity normal
+
+      - name: Build Store upload package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path "StoreOutput" | Out-Null
+          msbuild JellyfinXbox\JellyfinXbox.csproj -t:Build `
+            -p:Configuration=Release `
+            -p:Platform=x64 `
+            -p:AppxPackage=true `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:UapAppxPackageBuildMode=StoreUpload `
+            -p:AppxBundle=Always `
+            -p:AppxBundlePlatforms="x64" `
+            -p:AppxPackageSigningEnabled=false `
+            -p:AppxPackageDir="$env:GITHUB_WORKSPACE\StoreOutput\" `
+            -v:minimal
+
+          $uploads = Get-ChildItem "StoreOutput" -Recurse -File |
+            Where-Object { $_.Extension -in ".msixupload", ".appxupload" }
+          if (-not $uploads) { throw "No .msixupload/.appxupload file was produced." }
+          $uploads | ForEach-Object { Write-Host $_.FullName }
+
+      - name: Upload Store package
+        uses: actions/upload-artifact@v4
+        with:
+          name: xboxjellyfish-store-upload
+          path: StoreOutput/
+          if-no-files-found: error

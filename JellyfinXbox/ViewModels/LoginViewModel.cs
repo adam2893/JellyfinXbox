@@ -74,7 +74,7 @@ public partial class LoginViewModel : ObservableObject, IDisposable
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    _certTrust.AddTrusted(thumbprint);
+                    _certTrust.AddTrusted(host, thumbprint);
                     await ConnectAsync(); // retry with the trusted cert
                 }
                 else
@@ -101,12 +101,33 @@ public partial class LoginViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Normalize URL
-        if (!ServerUrl.StartsWith("http"))
-            ServerUrl = "https://" + ServerUrl;
+        // Normalize and validate the server URL before changing the shared
+        // client. This keeps malformed input from escaping as a startup-style
+        // exception and accepts uppercase HTTP/HTTPS schemes correctly.
+        var rawUrl = ServerUrl.Trim();
+        if (!rawUrl.Contains("://", StringComparison.Ordinal))
+            rawUrl = "https://" + rawUrl;
+        if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(parsed.Host))
+        {
+            ErrorMessage = "Enter a valid HTTP or HTTPS server URL.";
+            return;
+        }
+
+        ServerUrl = parsed.ToString().TrimEnd('/');
 
         IsLoading = true;
-        _api.SetServerUrl(ServerUrl);
+        try
+        {
+            _api.SetServerUrl(ServerUrl);
+        }
+        catch (ArgumentException ex)
+        {
+            ErrorMessage = ex.Message;
+            IsLoading = false;
+            return;
+        }
 
         var info = await _api.GetServerInfoAsync();
         if (info == null)

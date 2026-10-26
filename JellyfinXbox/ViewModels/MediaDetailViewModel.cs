@@ -36,6 +36,7 @@ public partial class MediaDetailViewModel : ObservableObject
 
     private string? _trailerItemId;
     private string? _loadedItemId;
+    private long _loadGeneration;
 
     public ObservableCollection<BaseItemDto> Seasons { get; } = new();
     public ObservableCollection<BaseItemDto> Episodes { get; } = new();
@@ -47,21 +48,41 @@ public partial class MediaDetailViewModel : ObservableObject
     {
         _api = api;
         _nav = nav;
+        Title = "";
+        Subtitle = "";
     }
 
     public async Task LoadAsync(string itemId)
     {
+        var generation = Interlocked.Increment(ref _loadGeneration);
         IsLoading = true;
         StatusMessage = "";
         HasError = false;
         _loadedItemId = itemId;
         Item = null;
+        Title = "";
+        Subtitle = "";
+        Description = null;
+        BackdropUrl = null;
+        PosterUrl = null;
+        CommunityRating = null;
+        Runtime = null;
+        OfficialRating = null;
+        IsFavorite = false;
+        FavoriteLabel = "Add to favorites";
+        ResumeLabel = "Play";
+        HasTrailer = false;
+        _trailerItemId = null;
         IsSeries = false;
         Seasons.Clear();
         Episodes.Clear();
+        Cast.Clear();
+        Genres.Clear();
+        SimilarItems.Clear();
         HasSimilarItems = false;
 
         var (item, error) = await _api.GetItemResultAsync(itemId);
+        if (generation != _loadGeneration) return;
         if (item == null)
         {
             StatusMessage = error == null ? "This item is unavailable. Try again later." : $"We couldn't load this item. Check your connection and try again.";
@@ -73,6 +94,11 @@ public partial class MediaDetailViewModel : ObservableObject
         try
         {
         Item = item;
+        item.BackdropImageTags ??= new();
+        item.Genres ??= new();
+        item.People ??= new();
+        item.RemoteTrailers ??= new();
+        item.UserData ??= new();
         IsFavorite = item.UserData?.IsFavorite == true;
         FavoriteLabel = IsFavorite ? "Remove from favorites" : "Add to favorites";
         var ticks = item.UserData?.PlaybackPositionTicks ?? 0;
@@ -95,7 +121,7 @@ public partial class MediaDetailViewModel : ObservableObject
 
         // Images
         PosterUrl = _api.GetItemImageUrl(item, "Primary", 720);
-        var backdropId = item.BackdropImageTags.Count > 0 ? item.Id : item.ParentBackdropItemId;
+        var backdropId = item.BackdropImageTags?.Count > 0 ? item.Id : item.ParentBackdropItemId;
         if (!string.IsNullOrEmpty(backdropId))
             BackdropUrl = _api.GetItemImageUrl(item, "Backdrop", 1920);
 
@@ -113,6 +139,7 @@ public partial class MediaDetailViewModel : ObservableObject
         {
             IsSeries = true;
             await LoadSeasonsAsync(item.Id);
+            if (generation != _loadGeneration) return;
         }
         else if (item.Type == "Episode" && !string.IsNullOrEmpty(item.SeriesId))
         {
@@ -123,6 +150,7 @@ public partial class MediaDetailViewModel : ObservableObject
 
         // Trailers
         var localTrailers = await _api.GetLocalTrailersAsync(item.Id);
+        if (generation != _loadGeneration) return;
         if (localTrailers.Count > 0)
         {
             _trailerItemId = localTrailers[0].Id;
@@ -142,18 +170,23 @@ public partial class MediaDetailViewModel : ObservableObject
         // Similar items
         SimilarItems.Clear();
         var similar = await _api.GetSimilarItemsAsync(item.Id, 12);
+        if (generation != _loadGeneration) return;
         foreach (var sim in similar.Items) SimilarItems.Add(sim);
         HasSimilarItems = SimilarItems.Count > 0;
 
         }
         catch (Exception)
         {
-            StatusMessage = "Some details could not be loaded. Try again.";
-            HasError = true;
+            if (generation == _loadGeneration)
+            {
+                StatusMessage = "Some details could not be loaded. Try again.";
+                HasError = true;
+            }
         }
         finally
         {
-            IsLoading = false;
+            if (generation == _loadGeneration)
+                IsLoading = false;
         }
     }
 

@@ -5,10 +5,11 @@ The **Audit Xbox AppX** GitHub Actions workflow is the pre-release gate for the 
 ## What it checks
 
 - Restores the solution with the Windows/UWP toolchain.
-- Runs the `JellyfinClient.Tests` test project.
+- Runs the `JellyfinClient.Tests` test project on every package build.
 - Builds the x64 Release AppX/MSIX package with the same packaging path used by the normal build.
 - Verifies that the package contains an x64 manifest and the self-contained .NET runtime.
 - Verifies that the matching signing certificate is included.
+- Requires and runs the Windows App Certification Kit (`appcert.exe`).
 - Writes `audit-report.md` and `SHA256SUMS.txt` into the `jellyfinxbox-audit` artifact.
 
 The audit workflow does **not** publish to a store, deploy to an Xbox, or claim that Xbox hardware validation has passed.
