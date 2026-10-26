@@ -15,6 +15,7 @@ public sealed partial class PlayerPage : Page
     private readonly GamepadService _gamepad;
     private readonly DiagnosticsLogService _diagnostics;
     private DispatcherTimer? _hideTimer;
+    private bool _isActive;
 
     // Stored as fields so += / -= in OnNavigatedTo/From match exactly.
     private readonly Action _viewPressedHandler;
@@ -78,25 +79,30 @@ public sealed partial class PlayerPage : Page
 
     private void OnPlayerInitialized(Windows.Media.Playback.MediaPlayer player)
     {
-        _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+        if (!_isActive || !ReferenceEquals(ViewModel.Player, player))
+            return;
+
+        try
         {
-            try
-            {
-                PlayerElement.SetMediaPlayer(player);
-                _diagnostics.Log("player-ui", "media-player-attached");
-            }
-            catch (Exception ex)
-            {
-                _diagnostics.LogException("player-ui", "media-player-attach-failed", ex);
-                ViewModel.HasPlaybackError = true;
-                ViewModel.PlaybackErrorMessage = "The Xbox media surface could not be initialized.";
-            }
-        });
+            // Attach synchronously while LoadAsync is still on the XAML/UI
+            // thread. This prevents the source from being assigned before the
+            // MediaPlayerElement owns the new native MediaPlayer.
+            player.IsFullWindow = true;
+            PlayerElement.SetMediaPlayer(player);
+            _diagnostics.Log("player-ui", "media-player-attached");
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player-ui", "media-player-attach-failed", ex);
+            ViewModel.HasPlaybackError = true;
+            ViewModel.PlaybackErrorMessage = "The Xbox media surface could not be initialized.";
+        }
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isActive = true;
         _diagnostics.Log("player-ui", "navigated-to", ("parameterType", e.Parameter?.GetType().Name ?? "none"));
 
         // Controller shortcuts (D-pad focus + A activation are native):
@@ -113,11 +119,13 @@ public sealed partial class PlayerPage : Page
         _gamepad.OnMenuPressed += ShowTransport;
 
         ViewModel.PlayerInitialized += OnPlayerInitialized;
+        ViewModel.PlayerDisposing += OnPlayerDisposing;
         var player = ViewModel.Player;
         if (player != null)
         {
             try
             {
+                player.IsFullWindow = true;
                 PlayerElement.SetMediaPlayer(player);
                 _diagnostics.Log("player-ui", "existing-media-player-attached");
             }
@@ -156,8 +164,11 @@ public sealed partial class PlayerPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         _diagnostics.Log("player-ui", "navigated-from");
+        _isActive = false;
+        DetachMediaPlayer();
         base.OnNavigatedFrom(e);
         ViewModel.PlayerInitialized -= OnPlayerInitialized;
+        ViewModel.PlayerDisposing -= OnPlayerDisposing;
         _gamepad.OnRightTrigger -= OnRightTrigger;
         _gamepad.OnLeftTrigger -= OnLeftTrigger;
         _gamepad.OnViewPressed -= _viewPressedHandler;
@@ -167,6 +178,24 @@ public sealed partial class PlayerPage : Page
         _gamepad.OnYPressed -= _yPressedHandler;
         _gamepad.OnMenuPressed -= ShowTransport;
         ViewModel.Dispose();
+    }
+
+    private void OnPlayerDisposing(Windows.Media.Playback.MediaPlayer player) => DetachMediaPlayer(player);
+
+    private void DetachMediaPlayer(Windows.Media.Playback.MediaPlayer? player = null)
+    {
+        try
+        {
+            if (player != null)
+                player.IsFullWindow = false;
+
+            PlayerElement.SetMediaPlayer(null!);
+            _diagnostics.Log("player-ui", "media-player-detached");
+        }
+        catch (Exception ex)
+        {
+            _diagnostics.LogException("player-ui", "media-player-detach-failed", ex);
+        }
     }
 
     // Trigger events fire continuously while held; a full 10s seek per poll

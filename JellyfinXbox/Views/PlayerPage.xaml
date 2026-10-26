@@ -11,7 +11,8 @@
         <!--         MEDIA RENDERER                  -->
         <!-- ═══════════════════════════════════════ -->
         <MediaPlayerElement x:Name="PlayerElement"
-                            AutoPlay="True"
+                            AutoPlay="False"
+                            AreTransportControlsEnabled="False"
                             Stretch="UniformToFill"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"

@@ -108,6 +108,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     }
 
     public event Action<MediaPlayer>? PlayerInitialized;
+    public event Action<MediaPlayer>? PlayerDisposing;
     public MediaPlayer? Player => _player;
     private TimeSpan? _initialSeekPosition;
 
@@ -1061,13 +1062,27 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     private void DisposePlayer()
     {
-        if (_player == null) return;
-        _player.MediaOpened -= Player_MediaOpened;
-        _player.PlaybackSession.PlaybackStateChanged -= Playback_PlaybackStateChanged;
-        _player.PlaybackSession.PositionChanged -= Playback_PositionChanged;
-        _player.MediaEnded -= Player_MediaEnded;
-        _player.MediaFailed -= Player_MediaFailed;
-        _player.Dispose();
+        var player = _player;
+        if (player == null) return;
+
+        // MediaPlayerElement can still hold the native player when a page is
+        // navigating away or a retry replaces the source. Give the page a
+        // chance to detach it before disposing the WinRT media object.
+        try { PlayerDisposing?.Invoke(player); }
+        catch (Exception ex) { _diagnostics.LogException("player", "media-player-detach-failed", ex); }
+
+        player.MediaOpened -= Player_MediaOpened;
+        player.PlaybackSession.PlaybackStateChanged -= Playback_PlaybackStateChanged;
+        player.PlaybackSession.PositionChanged -= Playback_PositionChanged;
+        player.MediaEnded -= Player_MediaEnded;
+        player.MediaFailed -= Player_MediaFailed;
         _player = null;
+        try
+        {
+            player.IsFullWindow = false;
+            player.Pause();
+            player.Dispose();
+        }
+        catch (Exception ex) { _diagnostics.LogException("player", "media-player-dispose-failed", ex); }
     }
 }

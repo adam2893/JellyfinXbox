@@ -8,7 +8,7 @@
   <Identity
     Name="com.boxjellyfish.app"
     Publisher="CN=AutoClaw"
-     Version="1.0.1.3" />
+     Version="1.0.1.4" />
 
   <Properties>
     <DisplayName>XboxJellyfish</DisplayName>

@@ -73,6 +73,24 @@ public sealed class ClientTests
     }
 
     [Fact]
+    public async Task ViewsParseTheUserViewsItemsEnvelope()
+    {
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+            ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+            : Json("{\"Items\":[{\"Id\":\"view1\",\"Name\":\"Library\",\"Type\":\"CollectionFolder\",\"CollectionType\":\"movies\"}]}") );
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+
+        var views = await client.GetViewsAsync();
+
+        var view = Assert.Single(views);
+        Assert.Equal("view1", view.Id);
+        Assert.Equal("Library", view.Name);
+        Assert.Equal("movies", view.CollectionType);
+    }
+
+    [Fact]
     public async Task PaginationUrlEscapesIdsAndIncludesFilters()
     {
         var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")

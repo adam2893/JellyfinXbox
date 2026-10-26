@@ -5,6 +5,7 @@ using Windows.UI.Xaml;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.System.Profile;
+using Windows.UI.ViewManagement;
 using JellyfinClient.Services;
 using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
@@ -150,15 +151,48 @@ public partial class App : Application
         try
         {
             if (StartupFailure != null) { ShowRecovery("APP-INIT", StartupFailure); return; }
+            ConfigureFullscreenWindow();
             StartupDiagnostics.Stage("shell.construct");
             MainWindow.Content = new ShellPage();
             StartupDiagnostics.Stage("shell.assigned");
             MainWindow.Activate();
+            TryEnterFullscreen();
         }
         catch (System.Exception ex)
         {
             StartupDiagnostics.Exception("app.on-launched", ex);
             ShowRecovery("APP-LAUNCH", ex);
+        }
+    }
+
+    private static void ConfigureFullscreenWindow()
+    {
+        try
+        {
+            var view = ApplicationView.GetForCurrentView();
+            view.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
+            view.FullScreenSystemOverlayMode = FullScreenSystemOverlayMode.Minimal;
+            StartupDiagnostics.Stage("app.fullscreen-configured");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Exception("app.fullscreen-configure", ex);
+        }
+    }
+
+    private static void TryEnterFullscreen()
+    {
+        try
+        {
+            var view = ApplicationView.GetForCurrentView();
+            if (!view.IsFullScreenMode && !view.TryEnterFullScreenMode())
+                StartupDiagnostics.Stage("app.fullscreen-not-entered");
+            else
+                StartupDiagnostics.Stage("app.fullscreen-entered");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Exception("app.fullscreen-enter", ex);
         }
     }
 

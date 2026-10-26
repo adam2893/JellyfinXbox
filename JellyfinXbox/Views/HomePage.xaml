@@ -44,7 +44,7 @@
 
             <!-- Cinematic spotlight: a controller-friendly version of Abyss's
                  home banner, with the real Continue Watching item as content. -->
-            <Grid MinHeight="360"
+            <Grid Height="360"
                   CornerRadius="24"
                   Background="{StaticResource SurfaceSecondaryBrush}"
                   Visibility="{x:Bind ViewModel.SpotlightItem, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
@@ -57,17 +57,17 @@
                 <Grid Background="{StaticResource HeroScrimBrush}" IsHitTestVisible="False" />
                 <Grid Background="{StaticResource HeroSideScrimBrush}" IsHitTestVisible="False" />
 
-                <StackPanel Padding="44 36"
+                <StackPanel Padding="44 28"
                             VerticalAlignment="Bottom"
                             MaxWidth="820"
-                            Spacing="14">
+                            Spacing="10">
                     <TextBlock Text="CONTINUE WATCHING"
                                FontSize="13"
                                FontWeight="SemiBold"
                                CharacterSpacing="90"
                                Foreground="{StaticResource AccentBrush}" />
                     <TextBlock Text="{Binding Name}"
-                               FontSize="42"
+                               FontSize="36"
                                FontWeight="Bold"
                                Foreground="{StaticResource TextPrimaryBrush}"
                                TextWrapping="Wrap"
@@ -87,11 +87,11 @@
                         </Border>
                     </StackPanel>
                     <TextBlock Text="{Binding Overview}"
-                               FontSize="16"
-                               LineHeight="25"
+                               FontSize="14"
+                               LineHeight="21"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"
-                               MaxLines="3"
+                               MaxLines="2"
                                Visibility="{Binding Overview, Converter={StaticResource StringToVisibilityConverter}}" />
                     <Button Content="View title"
                             Click="Spotlight_Click"

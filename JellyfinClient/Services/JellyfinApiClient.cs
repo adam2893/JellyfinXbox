@@ -1182,11 +1182,11 @@ public class JellyfinApiClient
         // 3. Views
         await Check("Views (UserViews)", async () =>
         {
-            var result = await SelfCheckGetAsync<List<ViewItem>>(
+            var result = await SelfCheckGetAsync<ItemsResult>(
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             return result.Error != null
                 ? (false, result.Error)
-                : (true, $"{result.Value?.Count ?? 0} library view(s)");
+                : (true, $"{result.Value?.Items.Count ?? 0} library view(s)");
         });
 
         // 4. Resume
@@ -1202,10 +1202,10 @@ public class JellyfinApiClient
         // 5. Library items (first view)
         await Check("Library items (Items)", async () =>
         {
-            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+            var viewsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             if (viewsResult.Error != null) return (false, viewsResult.Error);
-            var view = viewsResult.Value?.FirstOrDefault();
+            var view = viewsResult.Value?.Items.FirstOrDefault();
             if (view == null) return (true, "no library views configured");
             var result = await SelfCheckGetAsync<ItemsResult>(
                 $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=5&Recursive=true");
@@ -1237,10 +1237,10 @@ public class JellyfinApiClient
         // 8. PlaybackInfo + stream URL (the critical path for playback)
         await Check("Playback info + stream URL", async () =>
         {
-            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+            var viewsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             if (viewsResult.Error != null) return (false, viewsResult.Error);
-            var view = viewsResult.Value?.FirstOrDefault();
+            var view = viewsResult.Value?.Items.FirstOrDefault();
             if (view == null) return (false, "no library views");
 
             var itemsResult = await SelfCheckGetAsync<ItemsResult>(
@@ -1268,10 +1268,10 @@ public class JellyfinApiClient
         // 9. Image loading
         await Check("Image endpoint", async () =>
         {
-            var viewsResult = await SelfCheckGetAsync<List<ViewItem>>(
+            var viewsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"UserViews?userId={Uri.EscapeDataString(CurrentUser!.Id)}");
             if (viewsResult.Error != null) return (false, viewsResult.Error);
-            var view = viewsResult.Value?.FirstOrDefault();
+            var view = viewsResult.Value?.Items.FirstOrDefault();
             if (view == null) return (true, "no library views configured");
             var itemsResult = await SelfCheckGetAsync<ItemsResult>(
                 $"Items?userId={Uri.EscapeDataString(CurrentUser!.Id)}&ParentId={Uri.EscapeDataString(view.Id)}&StartIndex=0&Limit=1&Recursive=true");
