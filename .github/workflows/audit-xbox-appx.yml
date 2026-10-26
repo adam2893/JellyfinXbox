@@ -1,0 +1,22 @@
+name: Audit Xbox AppX
+
+on:
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Build and audit package
+    uses: ./.github/workflows/build-xbox-appx.yml
+    with:
+      artifact_name: jellyfinxbox-audit
+      run_audit: true
+    secrets: inherit

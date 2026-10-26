@@ -2,9 +2,36 @@ name: Build Xbox AppX (UWP sideload)
 
 on:
   workflow_dispatch: # manual trigger
+    inputs:
+      artifact_name:
+        description: "Artifact name to upload"
+        required: false
+        default: jellyfinxbox-appx
+        type: string
+      run_audit:
+        description: "Run package audit checks before uploading"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: "Artifact name to upload"
+        required: false
+        default: jellyfinxbox-appx
+        type: string
+      run_audit:
+        description: "Run package audit checks before uploading"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      CERT_PFX_B64:
+        required: false
+      CERT_PASSWORD:
+        required: false
   push:
     branches: [main, master]
-  pull_request:
 
 concurrency:
   group: build-${{ github.ref }}
@@ -86,13 +113,20 @@ jobs:
           # (Without this, packaging fails with APPX0105 "Cannot import
           # the key file" and no .appx is produced.)
           $securePass = ConvertTo-SecureString $env:CERT_PASSWORD -Force -AsPlainText
-          $imported = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePass
-          Write-Host "Imported PFX thumbprint: $($imported.Thumbprint)"
-          Add-Content -Path $env:GITHUB_ENV -Value "CERT_THUMBPRINT=$($imported.Thumbprint)"
+          $imported = @(Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePass)
+          $certificate = $imported[0]
+          Write-Host "Imported PFX thumbprint: $($certificate.Thumbprint)"
+          Export-Certificate -Cert $certificate -FilePath (Join-Path $env:RUNNER_TEMP "JellyfinXbox.cer") | Out-Null
+          Add-Content -Path $env:GITHUB_ENV -Value "CERT_THUMBPRINT=$($certificate.Thumbprint)"
 
       - name: Restore packages
         shell: pwsh
         run: msbuild JellyfinXbox.sln -t:Restore -p:Configuration=Release -p:Platform=x64 -v:minimal
+
+      - name: Run client tests
+        if: ${{ inputs.run_audit }}
+        shell: pwsh
+        run: dotnet test JellyfinClient.Tests\JellyfinClient.Tests.csproj -c Release --no-restore --verbosity normal
 
       - name: Build and package AppX (sideload)
         shell: pwsh
@@ -164,9 +198,70 @@ jobs:
           Write-Host "Bundled .NET runtime files:"
           $runtimeFiles | ForEach-Object { Write-Host $_.FullName }
 
+      - name: Audit packaged AppX
+        if: ${{ inputs.run_audit }}
+        shell: pwsh
+        env:
+          AUDIT_COMMIT: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = Get-ChildItem -Path "AppxOutput" -Recurse -File
+          $package = $files |
+            Where-Object { $_.Name -like "JellyfinXbox_*" -and $_.Extension -in ".appx", ".appxbundle", ".msix", ".msixbundle" } |
+            Select-Object -First 1
+          if (-not $package) { throw "Audit failed: JellyfinXbox package not found in AppxOutput." }
+
+          $certificate = $files | Where-Object { $_.Name -eq "JellyfinXbox.cer" } | Select-Object -First 1
+          if (-not $certificate) { throw "Audit failed: matching JellyfinXbox.cer not found in AppxOutput." }
+
+          $expanded = Join-Path $env:RUNNER_TEMP "audit-expanded-package"
+          if (Test-Path $expanded) { Remove-Item $expanded -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $expanded | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP "audit-package.zip"
+          Copy-Item $package.FullName $archive -Force
+          Expand-Archive -LiteralPath $archive -DestinationPath $expanded -Force
+
+          $manifestPath = Join-Path $expanded "AppxManifest.xml"
+          if (-not (Test-Path $manifestPath)) { throw "Audit failed: AppxManifest.xml not found in package." }
+          [xml]$manifest = Get-Content -Raw $manifestPath
+          $identity = Select-Xml -Xml $manifest -XPath "/*[local-name()='Package']/*[local-name()='Identity']"
+          if ($identity.Node.ProcessorArchitecture -ne "x64") {
+            throw "Audit failed: package architecture is '$($identity.Node.ProcessorArchitecture)', expected x64."
+          }
+
+          $runtimeNames = @("coreclr.dll", "hostfxr.dll", "System.Private.CoreLib.dll")
+          $runtimeFiles = Get-ChildItem $expanded -Recurse -File |
+            Where-Object { $runtimeNames -contains $_.Name }
+          if (-not $runtimeFiles) { throw "Audit failed: self-contained .NET runtime files are missing." }
+
+          $packageHash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash
+          $root = (Resolve-Path "AppxOutput").Path
+          $hashLines = foreach ($file in $files) {
+            $relative = $file.FullName.Substring($root.Length + 1)
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash
+            "$hash  $relative"
+          }
+          $hashLines | Set-Content -Path "AppxOutput\SHA256SUMS.txt" -Encoding utf8
+
+          @"
+          # XboxJellyfish audit report
+
+          - Commit: $env:AUDIT_COMMIT
+          - Package: $($package.Name)
+          - Package SHA-256: $packageHash
+          - Architecture: $($identity.Node.ProcessorArchitecture)
+          - Matching certificate: $($certificate.Name)
+          - Self-contained runtime: PASS
+          - Client tests: PASS (completed by the preceding build step)
+
+          This is an automated GitHub Actions package audit. It does not replace installation and manual validation on Xbox hardware.
+          "@ | Set-Content -Path "AppxOutput\audit-report.md" -Encoding utf8
+
+          Write-Host "Audit passed for $($package.Name)"
+
       - name: Upload AppX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: jellyfinxbox-appx
+          name: ${{ inputs.artifact_name || 'jellyfinxbox-appx' }}
           path: AppxOutput/
           if-no-files-found: error
