@@ -4,152 +4,177 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Background="{StaticResource SurfacePrimaryBrush}">
-        <!-- Backdrop -->
+        <!-- Full-bleed cinematic backdrop. The shell hides its rail on this
+             page, so the artwork owns the entire Xbox viewport. -->
         <Image x:Name="BackdropImage"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
                Stretch="UniformToFill"
-               VerticalAlignment="Top" />
+               Opacity="0.42"
+               IsHitTestVisible="False" />
 
-        <!-- Gradient overlay -->
-        <Border VerticalAlignment="Stretch">
-            <Border.Background>
+        <Grid IsHitTestVisible="False">
+            <Grid.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#0B0B0F" Offset="0.0" />
-                    <GradientStop Color="#0B0B0F00" Offset="0.15" />
-                    <GradientStop Color="#0B0B0F80" Offset="0.55" />
-                    <GradientStop Color="#0B0B0F" Offset="0.85" />
+                    <GradientStop Color="#E60B0B0F" Offset="0.0" />
+                    <GradientStop Color="#A60B0B0F" Offset="0.34" />
+                    <GradientStop Color="#F20B0B0F" Offset="0.70" />
+                    <GradientStop Color="#FF0B0B0F" Offset="1.0" />
                 </LinearGradientBrush>
-            </Border.Background>
-        </Border>
+            </Grid.Background>
+        </Grid>
 
-        <!-- Content -->
-        <ScrollViewer VerticalScrollBarVisibility="Hidden" Padding="60 40">
-            <StackPanel Spacing="40">
-
-                <!-- Hero section -->
-                <Grid RowSpacing="24" ColumnSpacing="32">
+        <ScrollViewer HorizontalScrollMode="Disabled"
+                      VerticalScrollBarVisibility="Hidden"
+                      Padding="72 56 72 96">
+            <StackPanel Spacing="48">
+                <!-- Hero: poster first, then the decision path. -->
+                <Grid MinHeight="520" ColumnSpacing="52">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="300" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
 
-                    <!-- Poster -->
-                    <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
-                            Width="240" Height="360"
+                    <Border Grid.Column="0"
+                            Width="300"
+                            Height="450"
                             CornerRadius="16"
                             Background="{StaticResource SurfaceTertiaryBrush}"
-                            Shadow="{ThemeResource ThemeShadow}">
-                        <Image x:Name="PosterImage" Stretch="UniformToFill" />
+                            VerticalAlignment="Center">
+                        <Image x:Name="PosterImage"
+                               Stretch="UniformToFill"
+                               IsHitTestVisible="False" />
                     </Border>
 
-                    <!-- Info -->
-                    <StackPanel Grid.Row="0" Grid.Column="1"
-                                VerticalAlignment="Bottom" Spacing="12">
-                        <!-- Title -->
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                MaxWidth="1120"
+                                Spacing="22">
                         <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                                   FontSize="42" FontWeight="Bold"
+                                   FontSize="56"
+                                   FontWeight="Bold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                   TextWrapping="Wrap" MaxLines="2" />
+                                   TextWrapping="Wrap"
+                                   MaxLines="2" />
 
-                        <!-- Meta line -->
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
                             <TextBlock Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
-                                       FontSize="16"
+                                       FontSize="18"
                                        Foreground="{StaticResource TextSecondaryBrush}" />
                             <TextBlock Text="{x:Bind ViewModel.CommunityRating, Mode=OneWay}"
-                                       FontSize="16" FontWeight="SemiBold"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
                                        Foreground="{StaticResource WarningBrush}"
-                                       Visibility="{x:Bind ViewModel.CommunityRating, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}" />
+                                       Visibility="{x:Bind ViewModel.CommunityRating, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
                             <TextBlock Text="{x:Bind ViewModel.Runtime, Mode=OneWay}"
-                                       FontSize="16"
+                                       FontSize="18"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       Visibility="{x:Bind ViewModel.Runtime, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}" />
-                            <Border Padding="8 4" CornerRadius="6"
+                                       Visibility="{x:Bind ViewModel.Runtime, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <Border Padding="10 5"
+                                    CornerRadius="6"
                                     Background="{StaticResource SurfaceTertiaryBrush}"
-                                    Visibility="{x:Bind ViewModel.OfficialRating, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                    Visibility="{x:Bind ViewModel.OfficialRating, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
                                 <TextBlock Text="{x:Bind ViewModel.OfficialRating, Mode=OneWay}"
-                                           FontSize="13" FontWeight="SemiBold"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
                                            Foreground="{StaticResource TextSecondaryBrush}" />
                             </Border>
                         </StackPanel>
 
-                        <!-- Genres -->
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.Genres, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Padding="10 6" CornerRadius="6"
-                                            Background="{StaticResource SurfaceTertiaryBrush}">
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}" />
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                        <ScrollViewer HorizontalScrollMode="Enabled"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollMode="Disabled">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Genres, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12 7"
+                                                CornerRadius="7"
+                                                Background="{StaticResource SurfaceTertiaryBrush}">
+                                            <TextBlock Text="{Binding}"
+                                                       FontSize="13"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
 
-                    <!-- Action buttons -->
-                    <StackPanel Grid.Row="1" Grid.Column="1"
-                                Orientation="Horizontal" Spacing="16"
-                                VerticalAlignment="Top">
-                        <Button Content="{x:Bind ViewModel.ResumeLabel, Mode=OneWay}"
-                                Command="{x:Bind ViewModel.PlayItemCommand}"
-                                CommandParameter="{x:Bind ViewModel.Item, Mode=OneWay}"
-                                Style="{StaticResource AccentButtonStyle}"
-                                FontSize="18" FontWeight="SemiBold"
-                                Padding="32 16" CornerRadius="10">
-                            <Button.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="Enter" />
-                            </Button.KeyboardAccelerators>
-                        </Button>
-                        <Button Content="{x:Bind ViewModel.FavoriteLabel, Mode=OneWay}"
-                                Command="{x:Bind ViewModel.ToggleFavoriteCommand}"
-                                FontSize="16" Padding="24 16" CornerRadius="10"
-                                Background="{StaticResource SurfaceTertiaryBrush}"
-                                Foreground="{StaticResource TextPrimaryBrush}" />
-                        <Button Content="&#xE8E1;  Trailer"
-                                Command="{x:Bind ViewModel.PlayTrailerCommand}"
-                                Visibility="{x:Bind ViewModel.HasTrailer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                FontSize="16"
-                                Padding="24 16" CornerRadius="10"
-                                Background="{StaticResource SurfaceTertiaryBrush}"
-                                Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}"
+                                   FontSize="18"
+                                   LineHeight="30"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="1000"
+                                   Visibility="{x:Bind ViewModel.Description, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button AutomationProperties.Name="Play"
+                                    Command="{x:Bind ViewModel.PlayItemCommand}"
+                                    CommandParameter="{x:Bind ViewModel.Item, Mode=OneWay}"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    Padding="28 16"
+                                    CornerRadius="10"
+                                    MinWidth="170">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE768;" FontSize="18" />
+                                    <TextBlock Text="{x:Bind ViewModel.ResumeLabel, Mode=OneWay}"
+                                               FontSize="17"
+                                               FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button AutomationProperties.Name="Favorite"
+                                    Command="{x:Bind ViewModel.ToggleFavoriteCommand}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    CornerRadius="10">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE734;" FontSize="17" />
+                                    <TextBlock Text="{x:Bind ViewModel.FavoriteLabel, Mode=OneWay}"
+                                               FontSize="16" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button AutomationProperties.Name="Trailer"
+                                    Command="{x:Bind ViewModel.PlayTrailerCommand}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    CornerRadius="10"
+                                    Visibility="{x:Bind ViewModel.HasTrailer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="17" />
+                                    <TextBlock Text="Trailer" FontSize="16" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <Border Padding="14 12"
+                                CornerRadius="8"
+                                Background="{StaticResource SurfaceSecondaryBrush}"
+                                Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                            <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                        </Border>
                     </StackPanel>
                 </Grid>
-                 <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
-                           Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
-                            Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
-                <Button Content="Try again"
-                        Command="{x:Bind ViewModel.RetryCommand}"
-                        Style="{StaticResource AccentButtonStyle}"
-                        HorizontalAlignment="Left"
-                        Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-                <!-- Description -->
-                <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}"
-                           FontSize="16" LineHeight="28"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           TextWrapping="Wrap"
-                           MaxWidth="900" />
-
-                <!-- ═══════════════════════════════════════ -->
-                <!--          SEASON SELECTOR                -->
-                <!-- ═══════════════════════════════════════ -->
-                 <StackPanel Visibility="{x:Bind ViewModel.IsSeries, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Spacing="20">
-                    <TextBlock Text="Seasons" FontSize="24" FontWeight="SemiBold"
+                <!-- Series content -->
+                <StackPanel Visibility="{x:Bind ViewModel.IsSeries, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Spacing="18">
+                    <TextBlock Text="Episodes"
+                               FontSize="28"
+                               FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
 
                     <ListView ItemsSource="{x:Bind ViewModel.Seasons, Mode=OneWay}"
                               SelectedIndex="{x:Bind ViewModel.SelectedSeasonIndex, Mode=TwoWay}"
                               SelectionMode="Single"
+                              Background="Transparent"
+                              Height="66"
                               ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                               ScrollViewer.HorizontalScrollMode="Enabled"
                               ScrollViewer.VerticalScrollMode="Disabled">
@@ -160,99 +185,113 @@
                         </ListView.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="20 12" CornerRadius="8"
+                                <Border Padding="22 13"
+                                        CornerRadius="9"
                                         Background="{StaticResource SurfaceTertiaryBrush}">
-                                    <TextBlock Text="{Binding Name}" FontSize="15"
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="16"
                                                Foreground="{StaticResource TextPrimaryBrush}" />
                                 </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
 
-                    <!-- Episode list -->
                     <ListView ItemsSource="{x:Bind ViewModel.Episodes, Mode=OneWay}"
                               SelectionMode="None"
                               IsItemClickEnabled="True"
+                              Background="Transparent"
                               ItemClick="Episode_ItemClick">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnSpacing="20" Padding="12 16"
-                                      Background="{StaticResource SurfaceTertiaryBrush}"
-                                      CornerRadius="10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                <Border Margin="0 0 0 10"
+                                        Padding="16"
+                                        CornerRadius="12"
+                                        Background="{StaticResource SurfaceSecondaryBrush}">
+                                    <Grid ColumnSpacing="20">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="54" />
+                                            <ColumnDefinition Width="180" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                    <!-- Episode number -->
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding IndexNumber}"
-                                               FontSize="24" FontWeight="Bold"
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               VerticalAlignment="Center"
-                                               Width="48" />
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding IndexNumber}"
+                                                   FontSize="24"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center" />
 
-                                    <!-- Thumbnail -->
-                                    <Border Grid.Column="1" Width="160" Height="90"
-                                            CornerRadius="8"
-                                            Background="{StaticResource SurfaceHoverBrush}">
-                                        <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
-                                               Stretch="UniformToFill" />
-                                    </Border>
+                                        <Border Grid.Column="1"
+                                                Width="180"
+                                                Height="102"
+                                                CornerRadius="8"
+                                                Background="{StaticResource SurfaceTertiaryBrush}">
+                                            <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
+                                                   Stretch="UniformToFill" />
+                                        </Border>
 
-                                    <!-- Info -->
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontSize="16" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="2" />
-                                        <TextBlock Text="{Binding Overview}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="2"
-                                                   Opacity="0.8" />
-                                    </StackPanel>
+                                        <StackPanel Grid.Column="2"
+                                                    VerticalAlignment="Center"
+                                                    Spacing="5">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxLines="2" />
+                                            <TextBlock Text="{Binding Overview}"
+                                                       FontSize="14"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxLines="2"
+                                                       Opacity="0.9" />
+                                        </StackPanel>
 
-                                    <!-- Runtime -->
-                                    <TextBlock Grid.Column="3"
-                                               Text="{Binding RunTimeTicks, Converter={StaticResource TicksToTimeSpanConverter}}"
-                                               FontSize="13"
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               VerticalAlignment="Center" />
-                                </Grid>
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding RunTimeTicks, Converter={StaticResource TicksToTimeSpanConverter}}"
+                                                   FontSize="14"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
                 </StackPanel>
 
-                <!-- ═══════════════════════════════════════ -->
-                <!--                CAST                      -->
-                <!-- ═══════════════════════════════════════ -->
-                <StackPanel Visibility="{x:Bind ViewModel.Cast.Count, Mode=OneWay, Converter={StaticResource CountToVisibilityConverter}}"
-                            Spacing="20">
-                    <TextBlock Text="Cast" FontSize="24" FontWeight="SemiBold"
+                <!-- Cast -->
+                <StackPanel Visibility="{x:Bind ViewModel.HasCast, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Spacing="18">
+                    <TextBlock Text="Cast"
+                               FontSize="28"
+                               FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
                     <ScrollViewer HorizontalScrollBarVisibility="Hidden"
-                                  HorizontalScrollMode="Enabled">
+                                  HorizontalScrollMode="Enabled"
+                                  VerticalScrollMode="Disabled">
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Cast, Mode=OneWay}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="20" />
+                                    <StackPanel Orientation="Horizontal" Spacing="22" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Width="100" Spacing="8">
-                                        <Border Width="72" Height="72" CornerRadius="36"
+                                    <StackPanel Width="112" Spacing="9">
+                                        <Border Width="82"
+                                                Height="82"
+                                                CornerRadius="41"
                                                 Background="{StaticResource SurfaceTertiaryBrush}"
                                                 HorizontalAlignment="Center">
                                             <Grid>
-                                                <FontIcon Glyph="&#xE77B;" FontSize="28"
+                                                <FontIcon Glyph="&#xE77B;"
+                                                          FontSize="30"
                                                           Foreground="{StaticResource TextMutedBrush}"
-                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                <Border CornerRadius="36">
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center" />
+                                                <Border CornerRadius="41">
                                                     <Border.Background>
                                                         <ImageBrush ImageSource="{Binding Converter={StaticResource PersonImageConverter}}"
                                                                     Stretch="UniformToFill" />
@@ -261,15 +300,18 @@
                                             </Grid>
                                         </Border>
                                         <TextBlock Text="{Binding Name}"
-                                                   FontSize="13" FontWeight="Medium"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    TextTrimming="CharacterEllipsis"
-                                                   MaxLines="1" TextAlignment="Center" />
+                                                   MaxLines="1"
+                                                   TextAlignment="Center" />
                                         <TextBlock Text="{Binding Role}"
                                                    FontSize="12"
                                                    Foreground="{StaticResource TextMutedBrush}"
                                                    TextTrimming="CharacterEllipsis"
-                                                   MaxLines="1" TextAlignment="Center" />
+                                                   MaxLines="1"
+                                                   TextAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -277,41 +319,47 @@
                     </ScrollViewer>
                 </StackPanel>
 
-                <!-- ═══════════════════════════════════════ -->
-                <!--           MORE LIKE THIS                -->
-                <!-- ═══════════════════════════════════════ -->
-                <StackPanel Visibility="{x:Bind ViewModel.HasSimilarItems, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Spacing="16">
-                    <TextBlock Text="More Like This" FontSize="24" FontWeight="SemiBold"
+                <!-- Similar titles -->
+                <StackPanel Visibility="{x:Bind ViewModel.HasSimilarItems, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Spacing="18">
+                    <TextBlock Text="More Like This"
+                               FontSize="28"
+                               FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
                     <ScrollViewer HorizontalScrollBarVisibility="Hidden"
-                                  HorizontalScrollMode="Enabled">
+                                  HorizontalScrollMode="Enabled"
+                                  VerticalScrollMode="Disabled">
                         <ItemsControl ItemsSource="{x:Bind ViewModel.SimilarItems, Mode=OneWay}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="16" />
+                                    <StackPanel Orientation="Horizontal" Spacing="18" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Background="Transparent"
-                                            Padding="0" BorderThickness="0"
+                                    <Button AutomationProperties.Name="Open similar title"
+                                            Background="Transparent"
+                                            Padding="0"
+                                            BorderThickness="0"
                                             Click="SimilarItem_Click"
-                                            CornerRadius="8">
-                                        <StackPanel Width="150" Spacing="8">
-                                            <Border CornerRadius="8" Height="225" Background="{StaticResource SurfaceTertiaryBrush}">
+                                            CornerRadius="10">
+                                        <StackPanel Width="170" Spacing="9">
+                                            <Border Width="170"
+                                                    Height="255"
+                                                    CornerRadius="10"
+                                                    Background="{StaticResource SurfaceTertiaryBrush}">
                                                 <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
                                                        Stretch="UniformToFill" />
                                             </Border>
                                             <TextBlock Text="{Binding Name}"
-                                                       FontSize="14" FontWeight="SemiBold"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
                                                        Foreground="{StaticResource TextPrimaryBrush}"
                                                        TextTrimming="CharacterEllipsis"
-                                                       MaxLines="1" />
+                                                       MaxLines="2" />
                                             <TextBlock Text="{Binding ProductionYear}"
-                                                       FontSize="12"
-                                                       Foreground="{StaticResource TextMutedBrush}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxLines="1" />
+                                                       FontSize="13"
+                                                       Foreground="{StaticResource TextMutedBrush}" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -319,18 +367,62 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </StackPanel>
-
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Back button (top-left) -->
-         <Button AutomationProperties.Name="Back" VerticalAlignment="Top" HorizontalAlignment="Left"
-                Margin="20 16"
-                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
-                Foreground="{StaticResource TextPrimaryBrush}"
-                Padding="12" CornerRadius="8"
+        <!-- Persistent, high-contrast navigation affordance. -->
+        <Button x:Name="BackButton"
+                AutomationProperties.Name="Back"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="28 24"
+                Width="56"
+                Height="56"
+                Padding="0"
+                CornerRadius="12"
+                Style="{StaticResource SecondaryButtonStyle}"
                 Click="Back_Click">
-            <FontIcon Glyph="&#xE72B;" FontSize="18" />
+            <FontIcon Glyph="&#xE72B;" FontSize="20" />
         </Button>
+
+        <Grid Background="#CC0B0B0F"
+              Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="16">
+                <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                              Width="54"
+                              Height="54" />
+                <TextBlock Text="Loading details…"
+                           FontSize="18"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                MaxWidth="560"
+                Padding="30"
+                CornerRadius="14"
+                Background="{StaticResource SurfaceSecondaryBrush}"
+                Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel Spacing="16">
+                <TextBlock Text="Couldn’t open this title"
+                           FontSize="24"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" />
+                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                           FontSize="16"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" />
+                <Button Content="Try again"
+                        Command="{x:Bind ViewModel.RetryCommand}"
+                        Style="{StaticResource AccentButtonStyle}"
+                        HorizontalAlignment="Left"
+                        Padding="24 13"
+                        CornerRadius="9" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Page>

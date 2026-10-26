@@ -128,7 +128,9 @@ public sealed partial class ShellPage : Page
 
     private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
-        bool hideRail = e.SourcePageType == typeof(PlayerPage) || e.SourcePageType == typeof(LoginPage);
+        bool hideRail = e.SourcePageType == typeof(PlayerPage) ||
+                        e.SourcePageType == typeof(LoginPage) ||
+                        e.SourcePageType == typeof(MediaDetailPage);
         SideNavRail.Visibility = hideRail ? Visibility.Collapsed : Visibility.Visible;
 
         NavHome.IsChecked = e.SourcePageType == typeof(HomePage);

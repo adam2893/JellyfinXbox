@@ -2,12 +2,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
+using JellyfinXbox.Services;
 using JellyfinXbox.ViewModels;
 
 namespace JellyfinXbox.Views;
 
 public sealed partial class MediaDetailPage : Page
 {
+    private bool _isActive;
+    private string? _itemId;
+
     public MediaDetailViewModel ViewModel { get; }
 
     public MediaDetailPage()
@@ -19,15 +23,44 @@ public sealed partial class MediaDetailPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isActive = true;
+        _itemId = e.Parameter as string;
 
-        if (e.Parameter is string itemId)
+        if (!string.IsNullOrWhiteSpace(_itemId))
         {
-            await ViewModel.LoadAsync(itemId);
+            try
+            {
+                await ViewModel.LoadAsync(_itemId);
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Exception("media-detail.load", ex);
+                ViewModel.StatusMessage = "We couldn't open this item. Try again.";
+                ViewModel.HasError = true;
+            }
 
-            // Load images
-            BackdropImage.Source = CreateBitmap(ViewModel.BackdropUrl);
-            PosterImage.Source = CreateBitmap(ViewModel.PosterUrl);
+            if (_isActive && string.Equals(_itemId, e.Parameter as string, StringComparison.Ordinal))
+            {
+                // Load only after the data request has completed, and only if
+                // this page is still the active destination.
+                BackdropImage.Source = CreateBitmap(ViewModel.BackdropUrl);
+                PosterImage.Source = CreateBitmap(ViewModel.PosterUrl);
+            }
         }
+        else
+        {
+            ViewModel.StatusMessage = "This item could not be opened.";
+            ViewModel.HasError = true;
+        }
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        _isActive = false;
+        ViewModel.InvalidateLoad();
+        BackdropImage.Source = null;
+        PosterImage.Source = null;
+        base.OnNavigatedFrom(e);
     }
 
     private static Windows.UI.Xaml.Media.Imaging.BitmapImage? CreateBitmap(string? url)
@@ -37,7 +70,7 @@ public sealed partial class MediaDetailPage : Page
 
         try
         {
-            return new Windows.UI.Xaml.Media.Imaging.BitmapImage(uri);
+            return new Windows.UI.Xaml.Media.Imaging.BitmapImage { UriSource = uri };
         }
         catch
         {

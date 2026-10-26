@@ -443,7 +443,7 @@ public class JellyfinApiClient
     public async Task<BaseItemDto?> GetItemAsync(string itemId)
     {
         if (CurrentUser == null) return null;
-        var url = $"Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
+        var url = $"Items/{Uri.EscapeDataString(itemId)}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
         try
         {
             return await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts);
@@ -456,7 +456,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return (null, new InvalidOperationException("Not signed in."));
         try
         {
-            var url = $"Items/{itemId}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
+            var url = $"Items/{Uri.EscapeDataString(itemId)}?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes,People,Studios,Genres,Chapters,Trickplay,RemoteTrailers";
             return (await _http.GetFromJsonAsync<BaseItemDto>(url, _jsonOpts), null);
         }
         catch (Exception ex) { return (null, ex); }
@@ -465,7 +465,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetSimilarItemsAsync(string itemId, int limit = 12)
     {
         if (CurrentUser == null) return new();
-        var url = $"Items/{itemId}/Similar?userId={CurrentUser.Id}&limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Items/{Uri.EscapeDataString(itemId)}/Similar?userId={CurrentUser.Id}&limit={limit}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -478,7 +478,7 @@ public class JellyfinApiClient
         if (CurrentUser == null) return new();
         try
         {
-            var url = $"Items/{itemId}/LocalTrailers?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+            var url = $"Items/{Uri.EscapeDataString(itemId)}/LocalTrailers?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
             var result = await _http.GetFromJsonAsync<List<BaseItemDto>>(url, _jsonOpts);
             return result ?? new();
         }
@@ -518,7 +518,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetSeasonsAsync(string seriesId)
     {
         if (CurrentUser == null) return new();
-        var url = $"Shows/{seriesId}/Seasons?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
+        var url = $"Shows/{Uri.EscapeDataString(seriesId)}/Seasons?userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,ItemCounts";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -529,7 +529,7 @@ public class JellyfinApiClient
     public async Task<ItemsResult> GetEpisodesAsync(string seriesId, string seasonId)
     {
         if (CurrentUser == null) return new();
-        var url = $"Shows/{seriesId}/Episodes?SeasonId={seasonId}&userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
+        var url = $"Shows/{Uri.EscapeDataString(seriesId)}/Episodes?SeasonId={Uri.EscapeDataString(seasonId)}&userId={CurrentUser.Id}&Fields=PrimaryImageAspectRatio,MediaSources,MediaStreams,Blurhashes,ImageBlurHashes";
         try
         {
             return await _http.GetFromJsonAsync<ItemsResult>(url, _jsonOpts) ?? new();
@@ -1012,6 +1012,8 @@ public class JellyfinApiClient
             }
             return null;
         }
+
+        if (string.IsNullOrWhiteSpace(itemId)) return null;
 
         var url = JellyfinEndpointBuilder.Combine(ServerUrl, GetImageUrl(itemId, imageType, maxWidth));
         return JellyfinEndpointBuilder.WithQuery(url, ("api_key", AccessToken));

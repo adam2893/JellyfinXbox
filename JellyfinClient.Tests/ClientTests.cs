@@ -128,6 +128,33 @@ public sealed class ClientTests
     }
 
     [Fact]
+    public async Task MediaDetailRequestsEscapeItemIds()
+    {
+        var handler = new RecordingHandler(request =>
+            request.RequestUri!.AbsolutePath.Contains("AuthenticateByName")
+                ? Json("{\"AccessToken\":\"token\",\"User\":{\"Id\":\"u1\",\"Name\":\"Ada\"}}")
+                : Json("{\"Id\":\"item-1\",\"Name\":\"Title\"}"));
+        var client = NewClient(handler);
+        client.SetServerUrl("https://example.test");
+        await client.AuthenticateAsync("user", "password");
+
+        var result = await client.GetItemResultAsync("item / one");
+
+        Assert.NotNull(result.Item);
+        var escapedPath = handler.LastRequest!.RequestUri!.GetComponents(UriComponents.Path, UriFormat.UriEscaped);
+        Assert.Contains("Items/item%20%2F%20one", escapedPath);
+    }
+
+    [Fact]
+    public void ImageUrlDoesNotCreateAnInvalidPathForMissingItemId()
+    {
+        var client = NewClient(new RecordingHandler(_ => Json("{}")));
+        client.SetServerUrl("https://example.test");
+
+        Assert.Null(client.GetItemImageUrl(new BaseItemDto { Id = "" }));
+    }
+
+    [Fact]
     public async Task DeviceIdIsPersistedAndSentInMediaBrowserHeader()
     {
         var store = new MemoryStore();

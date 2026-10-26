@@ -23,6 +23,7 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty] public partial bool IsSeries { get; set; }
     [ObservableProperty] public partial bool HasSimilarItems { get; set; }
     [ObservableProperty] public partial bool HasTrailer { get; set; }
+    [ObservableProperty] public partial bool HasCast { get; set; }
     [ObservableProperty] public partial BaseItemDto? Item { get; set; }
     [ObservableProperty] public partial string Title { get; set; }
     [ObservableProperty] public partial string Subtitle { get; set; }
@@ -37,6 +38,7 @@ public partial class MediaDetailViewModel : ObservableObject
     private string? _trailerItemId;
     private string? _loadedItemId;
     private long _loadGeneration;
+    private long _episodeLoadGeneration;
 
     public ObservableCollection<BaseItemDto> Seasons { get; } = new();
     public ObservableCollection<BaseItemDto> Episodes { get; } = new();
@@ -54,6 +56,7 @@ public partial class MediaDetailViewModel : ObservableObject
 
     public async Task LoadAsync(string itemId)
     {
+        itemId = itemId?.Trim() ?? string.Empty;
         var generation = Interlocked.Increment(ref _loadGeneration);
         IsLoading = true;
         StatusMessage = "";
@@ -74,12 +77,23 @@ public partial class MediaDetailViewModel : ObservableObject
         HasTrailer = false;
         _trailerItemId = null;
         IsSeries = false;
+        HasCast = false;
+        SelectedSeasonIndex = -1;
+        Interlocked.Increment(ref _episodeLoadGeneration);
         Seasons.Clear();
         Episodes.Clear();
         Cast.Clear();
         Genres.Clear();
         SimilarItems.Clear();
         HasSimilarItems = false;
+
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            StatusMessage = "This item has no valid identifier.";
+            HasError = true;
+            IsLoading = false;
+            return;
+        }
 
         var (item, error) = await _api.GetItemResultAsync(itemId);
         if (generation != _loadGeneration) return;
@@ -93,6 +107,14 @@ public partial class MediaDetailViewModel : ObservableObject
 
         try
         {
+        if (string.IsNullOrWhiteSpace(item.Id))
+        {
+            StatusMessage = "The server returned an item without an identifier.";
+            HasError = true;
+            IsLoading = false;
+            return;
+        }
+
         Item = item;
         item.BackdropImageTags ??= new();
         item.Genres ??= new();
@@ -103,7 +125,7 @@ public partial class MediaDetailViewModel : ObservableObject
         FavoriteLabel = IsFavorite ? "Remove from favorites" : "Add to favorites";
         var ticks = item.UserData?.PlaybackPositionTicks ?? 0;
         ResumeLabel = ticks > 0 ? $"Resume at {TimeSpan.FromTicks(ticks):h\\:mm\\:ss}" : "Play";
-        Title = item.Name;
+        Title = string.IsNullOrWhiteSpace(item.Name) ? "Untitled" : item.Name;
         Description = item.Overview;
 
         if (item.ProductionYear.HasValue)
@@ -131,8 +153,9 @@ public partial class MediaDetailViewModel : ObservableObject
 
         // Cast
         Cast.Clear();
-        foreach (var p in item.People.Where(p => p.Type == "Actor").Take(12))
+        foreach (var p in item.People.Where(p => p is not null && p.Type == "Actor").Take(12))
             Cast.Add(p);
+        HasCast = Cast.Count > 0;
 
         // Series handling
         if (item.Type == "Series")
@@ -151,9 +174,10 @@ public partial class MediaDetailViewModel : ObservableObject
         // Trailers
         var localTrailers = await _api.GetLocalTrailersAsync(item.Id);
         if (generation != _loadGeneration) return;
-        if (localTrailers.Count > 0)
+        var localTrailer = localTrailers.FirstOrDefault(t => t is not null && !string.IsNullOrWhiteSpace(t.Id));
+        if (localTrailer != null)
         {
-            _trailerItemId = localTrailers[0].Id;
+            _trailerItemId = localTrailer.Id;
             HasTrailer = true;
         }
         else if (item.RemoteTrailers?.Count > 0)
@@ -171,7 +195,8 @@ public partial class MediaDetailViewModel : ObservableObject
         SimilarItems.Clear();
         var similar = await _api.GetSimilarItemsAsync(item.Id, 12);
         if (generation != _loadGeneration) return;
-        foreach (var sim in similar.Items) SimilarItems.Add(sim);
+        foreach (var sim in similar.Items.Where(sim => sim is not null && !string.IsNullOrWhiteSpace(sim.Id)))
+            SimilarItems.Add(sim);
         HasSimilarItems = SimilarItems.Count > 0;
 
         }
@@ -235,21 +260,26 @@ public partial class MediaDetailViewModel : ObservableObject
 
     private async Task LoadEpisodesAsync(string seriesId, string seasonId)
     {
-        Episodes.Clear();
+        var generation = Interlocked.Increment(ref _episodeLoadGeneration);
         var result = await _api.GetEpisodesAsync(seriesId, seasonId);
-        foreach (var ep in result.Items) Episodes.Add(ep);
+        if (generation != _episodeLoadGeneration) return;
+
+        Episodes.Clear();
+        foreach (var ep in result.Items.Where(ep => ep is not null && !string.IsNullOrWhiteSpace(ep.Id)))
+            Episodes.Add(ep);
     }
 
     [RelayCommand]
     private void NavigateToItem(BaseItemDto item)
     {
-        _nav.NavigateTo(typeof(MediaDetailPage), item.Id);
+        if (!string.IsNullOrWhiteSpace(item?.Id))
+            _nav.NavigateTo(typeof(MediaDetailPage), item.Id);
     }
 
     [RelayCommand]
     private void PlayItem(BaseItemDto? item)
     {
-        if (item == null) return;
+        if (item == null || string.IsNullOrWhiteSpace(item.Id)) return;
         if (item.Type == "Series" && Episodes.Count > 0)
         {
             _nav.NavigateTo(typeof(PlayerPage), Episodes[0].Id);
@@ -268,11 +298,19 @@ public partial class MediaDetailViewModel : ObservableObject
         else if (Item?.RemoteTrailers?.Count > 0)
         {
             var trailer = Item.RemoteTrailers[0];
-            if (!string.IsNullOrEmpty(trailer.Url))
+            if (!string.IsNullOrEmpty(trailer.Url) &&
+                Uri.TryCreate(trailer.Url, UriKind.Absolute, out var trailerUri) &&
+                (trailerUri.Scheme == Uri.UriSchemeHttp || trailerUri.Scheme == Uri.UriSchemeHttps))
             {
-                _ = Windows.System.Launcher.LaunchUriAsync(new Uri(trailer.Url));
+                _ = Windows.System.Launcher.LaunchUriAsync(trailerUri);
             }
         }
+    }
+
+    public void InvalidateLoad()
+    {
+        Interlocked.Increment(ref _loadGeneration);
+        Interlocked.Increment(ref _episodeLoadGeneration);
     }
 
     [RelayCommand]

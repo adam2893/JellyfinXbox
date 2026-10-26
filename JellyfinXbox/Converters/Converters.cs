@@ -45,7 +45,7 @@ public class ItemToImageSourceConverter : IValueConverter
             string imageType = parameter as string ?? "Primary";
             int maxWidth = imageType == "Backdrop" ? 640 : 360;
             var url = api.GetItemImageUrl(item, imageType, maxWidth);
-            return !string.IsNullOrEmpty(url) ? new BitmapImage(new Uri(url)) : null;
+            return ImageSourceFactory.Create(url);
         }
         return null;
     }
@@ -64,13 +64,35 @@ public class PersonToImageSourceConverter : IValueConverter
             if (api == null || string.IsNullOrEmpty(api.ServerUrl)) return null;
 
             var url = api.GetPersonProfileImageUrl(person, 200);
-            return !string.IsNullOrEmpty(url) ? new BitmapImage(new Uri(url)) : null;
+            return ImageSourceFactory.Create(url);
         }
         return null;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
         => throw new NotImplementedException();
+}
+
+internal static class ImageSourceFactory
+{
+    public static BitmapImage? Create(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return null;
+
+        try
+        {
+            return new BitmapImage { UriSource = uri };
+        }
+        catch
+        {
+            // An invalid server image must leave a placeholder, not crash the
+            // detail page while a binding is being evaluated.
+            return null;
+        }
+    }
 }
 
 public class NullToVisibilityConverter : IValueConverter

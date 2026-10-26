@@ -94,6 +94,8 @@
         <!-- ═══════════════════════════════════════ -->
         <Frame x:Name="ContentFrame"
                Grid.Column="1"
+               HorizontalContentAlignment="Stretch"
+               VerticalContentAlignment="Stretch"
                Navigated="ContentFrame_Navigated" />
     </Grid>
 </Page>
