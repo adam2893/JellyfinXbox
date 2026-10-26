@@ -10,50 +10,47 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Padding="60 40 60 0" Spacing="24">
+        <StackPanel Grid.Row="0" Padding="56 40 56 0" Spacing="24">
             <StackPanel Orientation="Horizontal" Spacing="20">
-                 <Button AutomationProperties.Name="Back" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
-                        Padding="12" CornerRadius="8" Click="Back_Click">
+                 <Button AutomationProperties.Name="Back" Background="{StaticResource GlassSurfaceBrush}"
+                        BorderBrush="{StaticResource GlassBorderBrush}" BorderThickness="1"
+                        Foreground="{StaticResource TextPrimaryBrush}"
+                        Padding="12" CornerRadius="14" Click="Back_Click">
                     <FontIcon Glyph="&#xE72B;" FontSize="18" />
                 </Button>
-                <TextBlock Text="{x:Bind ViewModel.LibraryName, Mode=OneWay}"
-                           FontSize="36" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}"
-                           VerticalAlignment="Center" />
+                 <TextBlock Text="{x:Bind ViewModel.LibraryName, Mode=OneWay}"
+                            FontSize="34" FontWeight="SemiBold"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Filter chips -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <RadioButton Content="All" GroupName="Filter" IsChecked="True"
-                             Click="FilterAll_Click"
-                             FontSize="14" Padding="16 8" CornerRadius="8"
-                             Background="{StaticResource SurfaceTertiaryBrush}"
-                             Foreground="{StaticResource TextPrimaryBrush}" />
-                <RadioButton Content="Unwatched" GroupName="Filter"
-                             Click="FilterUnwatched_Click"
-                             FontSize="14" Padding="16 8" CornerRadius="8"
-                             Background="{StaticResource SurfaceTertiaryBrush}"
-                             Foreground="{StaticResource TextPrimaryBrush}" />
-                <RadioButton Content="Favorites" GroupName="Filter"
-                             Click="FilterFavorites_Click"
-                             FontSize="14" Padding="16 8" CornerRadius="8"
-                             Background="{StaticResource SurfaceTertiaryBrush}"
-                             Foreground="{StaticResource TextPrimaryBrush}" />
-                <RadioButton Content="Collections" GroupName="Filter"
-                             Click="FilterCollections_Click"
-                             FontSize="14" Padding="16 8" CornerRadius="8"
-                             Background="{StaticResource SurfaceTertiaryBrush}"
-                             Foreground="{StaticResource TextPrimaryBrush}" />
-                <RadioButton Content="Playlists" GroupName="Filter"
-                             Click="FilterPlaylists_Click"
-                             FontSize="14" Padding="16 8" CornerRadius="8"
-                             Background="{StaticResource SurfaceTertiaryBrush}"
-                             Foreground="{StaticResource TextPrimaryBrush}" />
+                 <RadioButton Content="All" GroupName="Filter" IsChecked="True"
+                              Style="{StaticResource PillRadioButtonStyle}"
+                              Click="FilterAll_Click"
+                              FontSize="14" />
+                 <RadioButton Content="Unwatched" GroupName="Filter"
+                              Style="{StaticResource PillRadioButtonStyle}"
+                              Click="FilterUnwatched_Click"
+                              FontSize="14" />
+                 <RadioButton Content="Favorites" GroupName="Filter"
+                              Style="{StaticResource PillRadioButtonStyle}"
+                              Click="FilterFavorites_Click"
+                              FontSize="14" />
+                 <RadioButton Content="Collections" GroupName="Filter"
+                              Style="{StaticResource PillRadioButtonStyle}"
+                              Click="FilterCollections_Click"
+                              FontSize="14" />
+                 <RadioButton Content="Playlists" GroupName="Filter"
+                              Style="{StaticResource PillRadioButtonStyle}"
+                              Click="FilterPlaylists_Click"
+                              FontSize="14" />
             </StackPanel>
         </StackPanel>
 
         <!-- Items grid -->
-        <ScrollViewer Grid.Row="1" Padding="64 32 64 64">
+        <ScrollViewer Grid.Row="1" Padding="56 32 56 64">
             <StackPanel Spacing="16">
             <GridView x:Name="ItemsGrid"
                       ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}"
@@ -71,7 +68,7 @@
                     <DataTemplate>
                         <StackPanel Width="160" Spacing="8">
                             <Border Width="160" Height="240"
-                                    CornerRadius="12"
+                                    CornerRadius="16"
                                     Background="{StaticResource SurfaceTertiaryBrush}">
                                 <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
                                        Stretch="UniformToFill" />

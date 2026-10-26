@@ -15,10 +15,13 @@
         <!-- ═══════════════════════════════════════ -->
         <!--             SIDE NAV BAR                 -->
         <!-- ═══════════════════════════════════════ -->
-        <Border x:Name="SideNavRail" Grid.Column="0" Width="80"
-                Background="{StaticResource SurfaceSecondaryBrush}"
-                BorderBrush="{StaticResource SurfaceTertiaryBrush}"
-                BorderThickness="0 0 1 0"
+        <Border x:Name="SideNavRail" Grid.Column="0" Width="92"
+                Margin="24 24 0 24"
+                Padding="8 12"
+                Background="{StaticResource GlassAcrylicBrush}"
+                BorderBrush="{StaticResource GlassBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="28"
                 VerticalAlignment="Stretch">
             <Grid VerticalAlignment="Stretch">
                 <Grid.RowDefinitions>
@@ -27,15 +30,17 @@
                 </Grid.RowDefinitions>
 
                 <!-- Top nav items -->
-                <StackPanel Grid.Row="0" VerticalAlignment="Center" Spacing="24"
-                            Padding="0 40">
+                <StackPanel Grid.Row="0" VerticalAlignment="Center" Spacing="18"
+                            Padding="0 28">
                     <!-- Logo -->
-                    <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0 0 0 24">
-                        <Image Source="Assets/Logo.png" Width="48" Height="48" Stretch="Uniform" />
-                        <TextBlock Text="XboxJellyfish" FontSize="10"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   HorizontalAlignment="Center" />
-                    </StackPanel>
+                    <Border Width="54" Height="54" CornerRadius="18"
+                            HorizontalAlignment="Center"
+                            Background="{StaticResource SurfacePrimaryBrush}"
+                            BorderBrush="{StaticResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            Margin="0 0 0 18">
+                        <Image Source="Assets/Logo.png" Width="42" Height="42" Stretch="Uniform" />
+                    </Border>
 
                     <!-- Home -->
                     <RadioButton x:Name="NavHome"
@@ -66,8 +71,8 @@
                 </StackPanel>
 
                 <!-- Bottom nav items -->
-                <StackPanel Grid.Row="1" VerticalAlignment="Bottom" Spacing="24"
-                            Padding="0 0 0 40">
+                <StackPanel Grid.Row="1" VerticalAlignment="Bottom" Spacing="18"
+                            Padding="0 0 0 28">
                     <!-- Quick Connect -->
                     <RadioButton x:Name="NavQuickConnect"
                                  Tag="quickconnect"

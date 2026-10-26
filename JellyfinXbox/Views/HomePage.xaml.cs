@@ -35,6 +35,12 @@ public sealed partial class HomePage : Page
             ViewModel.NavigateToLibraryCommand.Execute(item);
     }
 
+    private void Spotlight_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SpotlightItem is BaseItemDto item)
+            ViewModel.NavigateToItemCommand.Execute(item);
+    }
+
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);

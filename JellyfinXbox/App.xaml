@@ -18,6 +18,8 @@
             <Color x:Key="SurfaceTertiary">#1C1C24</Color>
             <Color x:Key="SurfaceHover">#262630</Color>
             <Color x:Key="SurfaceActive">#30303D</Color>
+            <Color x:Key="GlassTint">#2A2A2A</Color>
+            <Color x:Key="GlassBorder">#33F5F5F7</Color>
             <Color x:Key="TextPrimary">#F0EFF4</Color>
             <Color x:Key="TextSecondary">#9B99A4</Color>
             <Color x:Key="TextMuted">#5E5D66</Color>
@@ -25,6 +27,7 @@
             <Color x:Key="AccentHover">#A8C8D4</Color>
             <Color x:Key="AccentPressed">#7197A6</Color>
             <Color x:Key="AccentGlow">#8FB5C420</Color>
+            <Color x:Key="AccentContrast">#121212</Color>
             <Color x:Key="Success">#34D399</Color>
             <Color x:Key="Warning">#FBBF24</Color>
             <Color x:Key="Error">#F87171</Color>
@@ -37,6 +40,9 @@
             <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{StaticResource SurfaceTertiary}" />
             <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHover}" />
             <SolidColorBrush x:Key="SurfaceActiveBrush" Color="{StaticResource SurfaceActive}" />
+            <SolidColorBrush x:Key="GlassSurfaceBrush" Color="{StaticResource GlassTint}" Opacity="0.78" />
+            <SolidColorBrush x:Key="GlassSurfaceStrongBrush" Color="{StaticResource GlassTint}" Opacity="0.92" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
@@ -44,10 +50,30 @@
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHover}" />
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressed}" />
             <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlow}" />
+            <SolidColorBrush x:Key="AccentContrastBrush" Color="{StaticResource AccentContrast}" />
             <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Accent}" />
             <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
             <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
             <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
+
+            <!-- Abyss-inspired glass, kept deliberately restrained for Xbox performance. -->
+            <AcrylicBrush x:Key="GlassAcrylicBrush"
+                          BackgroundSource="Backdrop"
+                          TintColor="#2A2A2A"
+                          TintOpacity="0.86"
+                          FallbackColor="#1C1C24" />
+
+            <LinearGradientBrush x:Key="HeroScrimBrush" StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Color="#220B0B0F" Offset="0" />
+                <GradientStop Color="#A60B0B0F" Offset="0.48" />
+                <GradientStop Color="#F20B0B0F" Offset="1" />
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="HeroSideScrimBrush" StartPoint="0,0.5" EndPoint="1,0.5">
+                <GradientStop Color="#D90B0B0F" Offset="0" />
+                <GradientStop Color="#880B0B0F" Offset="0.52" />
+                <GradientStop Color="#000B0B0F" Offset="1" />
+            </LinearGradientBrush>
 
         </ResourceDictionary>
     </Application.Resources>

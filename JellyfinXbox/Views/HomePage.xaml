@@ -4,14 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:JellyfinXbox.Views">
 
-    <ScrollViewer VerticalScrollBarVisibility="Hidden"
+    <ScrollViewer Background="{StaticResource SurfacePrimaryBrush}"
+                  VerticalScrollBarVisibility="Hidden"
                   HorizontalScrollMode="Disabled"
                   VerticalSnapPointsType="None">
         <Grid>
-        <StackPanel Padding="64 48 64 72" Spacing="52">
+        <StackPanel Padding="56 40 56 72" Spacing="36">
 
             <!-- ═══════════════════════════════════════ -->
-            <!--          WELCOME HEADER                 -->
+            <!--          ABYSS-INSPIRED HEADER           -->
             <!-- ═══════════════════════════════════════ -->
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -19,20 +20,86 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Good evening"
-                               FontSize="36" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="HOME"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource AccentBrush}"
+                               CharacterSpacing="120" />
                     <TextBlock Text="What do you want to watch?"
-                               FontSize="18"
+                               FontSize="34" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Your library, ready for the next scene."
+                               FontSize="16"
                                Foreground="{StaticResource TextSecondaryBrush}" />
                 </StackPanel>
                 <!-- User avatar -->
-                <Border Grid.Column="1" Width="48" Height="48" CornerRadius="24"
-                        Background="{StaticResource SurfaceTertiaryBrush}">
-                    <FontIcon Glyph="&#xE77B;" FontSize="24"
+                <Border Grid.Column="1" Width="56" Height="56" CornerRadius="20"
+                        Background="{StaticResource GlassSurfaceBrush}"
+                        BorderBrush="{StaticResource GlassBorderBrush}"
+                        BorderThickness="1">
+                    <FontIcon Glyph="&#xE77B;" FontSize="25"
                               Foreground="{StaticResource TextSecondaryBrush}"
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
+            </Grid>
+
+            <!-- Cinematic spotlight: a controller-friendly version of Abyss's
+                 home banner, with the real Continue Watching item as content. -->
+            <Grid MinHeight="360"
+                  CornerRadius="24"
+                  Background="{StaticResource SurfaceSecondaryBrush}"
+                  Visibility="{x:Bind ViewModel.SpotlightItem, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
+                  DataContext="{x:Bind ViewModel.SpotlightItem, Mode=OneWay}">
+                <Border CornerRadius="24" IsHitTestVisible="False">
+                    <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Backdrop}"
+                           Stretch="UniformToFill"
+                           Opacity="0.8" />
+                </Border>
+                <Grid Background="{StaticResource HeroScrimBrush}" IsHitTestVisible="False" />
+                <Grid Background="{StaticResource HeroSideScrimBrush}" IsHitTestVisible="False" />
+
+                <StackPanel Padding="44 36"
+                            VerticalAlignment="Bottom"
+                            MaxWidth="820"
+                            Spacing="14">
+                    <TextBlock Text="CONTINUE WATCHING"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               CharacterSpacing="90"
+                               Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="{Binding Name}"
+                               FontSize="42"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxLines="2" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{Binding SeriesName}"
+                                   FontSize="16"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Visibility="{Binding SeriesName, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Border Padding="10 5"
+                                CornerRadius="12"
+                                Background="{StaticResource GlassSurfaceBrush}"
+                                Visibility="{Binding ProductionYear, Converter={StaticResource NullToVisibilityConverter}}">
+                            <TextBlock Text="{Binding ProductionYear}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Overview}"
+                               FontSize="16"
+                               LineHeight="25"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxLines="3"
+                               Visibility="{Binding Overview, Converter={StaticResource StringToVisibilityConverter}}" />
+                    <Button Content="View title"
+                            Click="Spotlight_Click"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Padding="24 14"
+                            CornerRadius="14"
+                            HorizontalAlignment="Left" />
+                </StackPanel>
             </Grid>
 
             <!-- ═══════════════════════════════════════ -->
@@ -59,9 +126,9 @@
                         <GridView.ItemTemplate>
                             <DataTemplate>
                                 <Grid Width="200" Height="90"
-                                      CornerRadius="12"
-                                      Background="{StaticResource SurfaceSecondaryBrush}"
-                                      BorderBrush="{StaticResource SurfaceTertiaryBrush}"
+                                      CornerRadius="16"
+                                      Background="{StaticResource GlassSurfaceBrush}"
+                                      BorderBrush="{StaticResource GlassBorderBrush}"
                                       BorderThickness="1"
                                       Padding="18 14">
                                     <StackPanel VerticalAlignment="Center" Spacing="6">
@@ -104,7 +171,7 @@
                         <GridView.ItemTemplate>
                             <DataTemplate>
                                 <Grid Width="320" Height="180"
-                                      CornerRadius="12"
+                                      CornerRadius="16"
                                       Background="{StaticResource SurfaceTertiaryBrush}">
                                     <!-- Poster -->
                                     <Border CornerRadius="12">
@@ -113,7 +180,7 @@
                                     </Border>
                                     <!-- Progress bar -->
                                     <StackPanel VerticalAlignment="Bottom"
-                                                Background="{StaticResource SurfaceSecondaryBrush}"
+                                                 Background="{StaticResource GlassSurfaceStrongBrush}"
                                                 Padding="12 8" Spacing="4">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="14" FontWeight="SemiBold"
@@ -156,14 +223,14 @@
                         <GridView.ItemTemplate>
                             <DataTemplate>
                                 <Grid Width="320" Height="180"
-                                      CornerRadius="12"
+                                      CornerRadius="16"
                                       Background="{StaticResource SurfaceTertiaryBrush}">
                                     <Border CornerRadius="12">
                                         <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Backdrop}"
                                                Stretch="UniformToFill" />
                                     </Border>
                                     <StackPanel VerticalAlignment="Bottom"
-                                                Background="{StaticResource SurfaceSecondaryBrush}"
+                                                 Background="{StaticResource GlassSurfaceStrongBrush}"
                                                 Padding="12 8" Spacing="2">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="14" FontWeight="SemiBold"
@@ -206,7 +273,7 @@
                             <DataTemplate>
                                 <StackPanel Width="160" Spacing="8">
                                     <Border Width="160" Height="240"
-                                            CornerRadius="12"
+                                            CornerRadius="16"
                                             Background="{StaticResource SurfaceTertiaryBrush}">
                                         <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
                                                Stretch="UniformToFill" />
@@ -251,7 +318,7 @@
                             <DataTemplate>
                                 <StackPanel Width="160" Spacing="8">
                                     <Border Width="160" Height="240"
-                                            CornerRadius="12"
+                                            CornerRadius="16"
                                             Background="{StaticResource SurfaceTertiaryBrush}">
                                         <Image Source="{Binding Converter={StaticResource ItemImageConverter}, ConverterParameter=Primary}"
                                                Stretch="UniformToFill" />

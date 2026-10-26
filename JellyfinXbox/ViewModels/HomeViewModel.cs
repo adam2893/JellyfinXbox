@@ -19,6 +19,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool HasNextUp { get; set; }
     [ObservableProperty] public partial string DisplayName { get; set; }
     [ObservableProperty] public partial string ErrorMessage { get; set; }
+    [ObservableProperty] public partial BaseItemDto? SpotlightItem { get; set; }
 
     public ObservableCollection<ViewItem> Libraries { get; } = new();
     public ObservableCollection<BaseItemDto> ContinueWatching { get; } = new();
@@ -47,6 +48,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
         IsLoading = true;
         ErrorMessage = "";
         DisplayName = _api.CurrentUser?.Name ?? "";
+        SpotlightItem = null;
 
         try
         {
@@ -61,6 +63,7 @@ public partial class HomeViewModel : ObservableObject, IDisposable
             ContinueWatching.Clear();
             foreach (var item in resumeTask.Result.Items) ContinueWatching.Add(item);
             HasContinueWatching = ContinueWatching.Count > 0;
+            SpotlightItem = ContinueWatching.FirstOrDefault();
 
             // Next up
             NextUp.Clear();
